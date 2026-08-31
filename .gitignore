@@ -1,0 +1,75 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+*.so
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment / secrets
+.env
+*.pem
+*.key
+
+# Node
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# Data artifacts (large files)
+data/raw/*.csv
+data/raw/*.parquet
+data/processed/*.csv
+data/processed/*.parquet
+data/splits/*.csv
+data/demo/*.csv
+
+# ML artifacts
+artifacts/models/*.pkl
+artifacts/models/*.joblib
+artifacts/models/*.json
+artifacts/plots/*.png
+artifacts/metrics/*.json
+artifacts/reports/*.md
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker
+.docker/
+
+# Logs
+*.log
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+
+# Jupyter
+.ipynb_checkpoints/
+
+# pytest
+.pytest_cache/
