@@ -1,0 +1,25 @@
+{
+  "dataset_version": "1.0.0",
+  "generated_at": "2026-08-31T14:12:44.276292",
+  "seed": 42,
+  "scale": {
+    "customers": 50725,
+    "devices": 46295,
+    "addresses": 43041,
+    "payment_tokens": 45960,
+    "orders": 212397,
+    "refunds": 33185,
+    "coordinated_abuse_refunds": 4041,
+    "abuse_rings": 200
+  },
+  "marginal_matching": {
+    "type_f_ring_count": 30,
+    "type_f_customer_count": 475,
+    "type_f_mean_ring_size": 15.83,
+    "other_mean_ring_size": 16.18,
+    "type_f_mean_order_amount": 2614.22,
+    "other_mean_order_amount": 2341.43,
+    "type_f_refund_rate": 0.8137,
+    "other_refund_rate": 0.8228
+  }
+}

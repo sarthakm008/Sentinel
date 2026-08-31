@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-08-31T14:12:44.275176",
+  "seed": 42,
+  "simulation_days": 180,
+  "splits_summary": {
+    "train": {
+      "customers": 30023,
+      "devices": 27433,
+      "addresses": 25660,
+      "payment_tokens": 27209,
+      "components": 22357
+    },
+    "validation": {
+      "customers": 10079,
+      "devices": 9316,
+      "addresses": 8592,
+      "payment_tokens": 9296,
+      "components": 7452
+    },
+    "test": {
+      "customers": 10623,
+      "devices": 9546,
+      "addresses": 8789,
+      "payment_tokens": 9455,
+      "components": 7482
+    }
+  },
+  "marginal_stats": {
+    "type_f_ring_count": 30,
+    "type_f_customer_count": 475,
+    "type_f_mean_ring_size": 15.83,
+    "other_mean_ring_size": 16.18,
+    "type_f_mean_order_amount": 2614.22,
+    "other_mean_order_amount": 2341.43,
+    "type_f_refund_rate": 0.8137,
+    "other_refund_rate": 0.8228
+  }
+}
