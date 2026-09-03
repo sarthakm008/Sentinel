@@ -1,0 +1,163 @@
+{
+  "baseline": {
+    "model_name": "baseline",
+    "dataset": "held_out_test",
+    "sample_count": 8517,
+    "positive_count": 1170,
+    "frozen_threshold": 0.42,
+    "precision": 0.2351,
+    "recall": 0.7453,
+    "f1": 0.3575,
+    "pr_auc": 0.3053,
+    "roc_auc": 0.746,
+    "financial_metrics": {
+      "false_negative_loss": 770972.94,
+      "false_positive_loss": 567400.0,
+      "review_cost_tp": 43600.0,
+      "total_expected_loss": 1381972.94,
+      "fn_count": 298,
+      "fp_count": 2837,
+      "tp_count": 872,
+      "tn_count": 4510
+    },
+    "loss_avoided_vs_baseline_inr": 0.0
+  },
+  "graph_enhanced": {
+    "model_name": "graph_enhanced",
+    "dataset": "held_out_test",
+    "sample_count": 8517,
+    "positive_count": 1170,
+    "frozen_threshold": 0.37,
+    "precision": 0.3056,
+    "recall": 0.6915,
+    "f1": 0.4239,
+    "pr_auc": 0.4501,
+    "roc_auc": 0.7983,
+    "financial_metrics": {
+      "false_negative_loss": 909622.09,
+      "false_positive_loss": 367600.0,
+      "review_cost_tp": 40450.0,
+      "total_expected_loss": 1317672.09,
+      "fn_count": 361,
+      "fp_count": 1838,
+      "tp_count": 809,
+      "tn_count": 5509
+    },
+    "loss_avoided_vs_baseline_inr": 64300.85
+  },
+  "temporal_enhanced": {
+    "model_name": "temporal_enhanced",
+    "dataset": "held_out_test",
+    "sample_count": 8517,
+    "positive_count": 1170,
+    "frozen_threshold": 0.35,
+    "precision": 0.2579,
+    "recall": 0.8427,
+    "f1": 0.395,
+    "pr_auc": 0.4059,
+    "roc_auc": 0.8039,
+    "financial_metrics": {
+      "false_negative_loss": 447408.89,
+      "false_positive_loss": 567400.0,
+      "review_cost_tp": 49300.0,
+      "total_expected_loss": 1064108.89,
+      "fn_count": 184,
+      "fp_count": 2837,
+      "tp_count": 986,
+      "tn_count": 4510
+    },
+    "loss_avoided_vs_baseline_inr": 317864.05
+  },
+  "sentinel": {
+    "model_name": "sentinel",
+    "dataset": "held_out_test",
+    "sample_count": 8517,
+    "positive_count": 1170,
+    "frozen_threshold": 0.41,
+    "precision": 0.3179,
+    "recall": 0.6444,
+    "f1": 0.4257,
+    "pr_auc": 0.4493,
+    "roc_auc": 0.7993,
+    "financial_metrics": {
+      "false_negative_loss": 1055057.66,
+      "false_positive_loss": 323600.0,
+      "review_cost_tp": 37700.0,
+      "total_expected_loss": 1416357.66,
+      "fn_count": 416,
+      "fp_count": 1618,
+      "tp_count": 754,
+      "tn_count": 5729
+    },
+    "loss_avoided_vs_baseline_inr": -34384.72
+  },
+  "graph_only": {
+    "model_name": "graph_only",
+    "dataset": "held_out_test",
+    "sample_count": 8517,
+    "positive_count": 1170,
+    "frozen_threshold": 0.45,
+    "precision": 0.2535,
+    "recall": 0.4282,
+    "f1": 0.3185,
+    "pr_auc": 0.2594,
+    "roc_auc": 0.6128,
+    "financial_metrics": {
+      "false_negative_loss": 1516382.12,
+      "false_positive_loss": 295000.0,
+      "review_cost_tp": 25050.0,
+      "total_expected_loss": 1836432.12,
+      "fn_count": 669,
+      "fp_count": 1475,
+      "tp_count": 501,
+      "tn_count": 5872
+    },
+    "loss_avoided_vs_baseline_inr": -454459.18
+  },
+  "growth_only": {
+    "model_name": "growth_only",
+    "dataset": "held_out_test",
+    "sample_count": 8517,
+    "positive_count": 1170,
+    "frozen_threshold": 0.45,
+    "precision": 0.3221,
+    "recall": 0.5795,
+    "f1": 0.414,
+    "pr_auc": 0.4032,
+    "roc_auc": 0.7264,
+    "financial_metrics": {
+      "false_negative_loss": 1141972.55,
+      "false_positive_loss": 285400.0,
+      "review_cost_tp": 33900.0,
+      "total_expected_loss": 1461272.55,
+      "fn_count": 492,
+      "fp_count": 1427,
+      "tp_count": 678,
+      "tn_count": 5920
+    },
+    "loss_avoided_vs_baseline_inr": -79299.61
+  },
+  "sentinel_interaction": {
+    "model_name": "sentinel_interaction",
+    "dataset": "held_out_test",
+    "sample_count": 8517,
+    "positive_count": 1170,
+    "frozen_threshold": 0.39,
+    "precision": 0.3158,
+    "recall": 0.6658,
+    "f1": 0.4284,
+    "pr_auc": 0.4485,
+    "roc_auc": 0.8014,
+    "financial_metrics": {
+      "false_negative_loss": 1005605.06,
+      "false_positive_loss": 337600.0,
+      "review_cost_tp": 38950.0,
+      "total_expected_loss": 1382155.06,
+      "fn_count": 391,
+      "fp_count": 1688,
+      "tp_count": 779,
+      "tn_count": 5659
+    },
+    "loss_avoided_vs_baseline_inr": -182.12
+  }
+}

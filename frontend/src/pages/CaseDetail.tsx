@@ -1,9 +1,9 @@
 // Case Detail page
 
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { casesApi, riskApi } from '../api';
-import { CaseResponse, GraphResponse, EvidenceItem } from '../types';
+import { CaseResponse, GraphResponse, EvidenceItem, TimelineResponse, TimelineEvent } from '../types';
 import { RiskBadge } from '../components/RiskBadge';
 import { EvidenceCard } from '../components/EvidenceCard';
 import { GraphViz } from '../components/GraphViz';
@@ -13,6 +13,7 @@ export function CaseDetail() {
   const navigate = useNavigate();
   const [caseData, setCaseData] = useState<CaseResponse | null>(null);
   const [graphData, setGraphData] = useState<GraphResponse | null>(null);
+  const [timelineData, setTimelineData] = useState<TimelineResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [deciding, setDeciding] = useState(false);
   const [activeTab, setActiveTab] = useState<'evidence' | 'graph' | 'decision' | 'timeline'>('evidence');
@@ -26,12 +27,14 @@ export function CaseDetail() {
   const loadCase = async () => {
     try {
       setLoading(true);
-      const [caseRes, graphRes] = await Promise.all([
+      const [caseRes, graphRes, timelineRes] = await Promise.all([
         casesApi.get(parseInt(id!)),
         riskApi.getGraph(parseInt(id!)),
+        casesApi.getTimeline(parseInt(id!)),
       ]);
       setCaseData(caseRes);
       setGraphData(graphRes);
+      setTimelineData(timelineRes);
     } catch (err) {
       console.error('Failed to load case:', err);
     } finally {
@@ -273,15 +276,15 @@ export function CaseDetail() {
                   by the Sentinel production model (39 features: 18 behavioral + 15 graph + 6 temporal).
                   The frozen decision threshold is <strong>0.41</strong>.
                 </p>
-                <p className="text-gray-700 mt-2">
-                  Based on the ActionPolicy, this places the event in the
-                  <strong className={bandColors[caseData.risk_band] || ''} px-2 py-0.5 rounded inline-block">
-                    {caseData.risk_band}
-                  </strong>
-                  band, recommending <strong className={actionColors[caseData.recommended_action] || ''} px-2 py-0.5 rounded inline-block">
-                    {caseData.recommended_action.toUpperCase()}
-                  </strong>.
-                </p>
+<p className="text-gray-700 mt-2">
+                    Based on the ActionPolicy, this places the event in the
+                    <strong className={`${bandColors[caseData.risk_band] || ''} px-2 py-0.5 rounded inline-block`}>
+                      {caseData.risk_band}
+                    </strong>
+                    band, recommending <strong className={`${actionColors[caseData.recommended_action] || ''} px-2 py-0.5 rounded inline-block`}>
+                      {caseData.recommended_action.toUpperCase()}
+                    </strong>.
+                  </p>
               </div>
 
               {caseData.status === 'decided' && (
@@ -307,8 +310,88 @@ export function CaseDetail() {
           )}
 
           {activeTab === 'timeline' && (
-            <div className="text-gray-500 text-center py-8">
-              Timeline view showing cluster events over time (to be implemented)
+            <div>
+              {timelineData ? (
+                <div className="space-y-4">
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-500">Target Customer</p>
+                        <p className="font-mono font-medium">{timelineData.target_customer}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Target Refund</p>
+                        <p className="font-mono font-medium">{timelineData.target_refund_id}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Refund Time</p>
+                        <p className="font-mono font-medium">{new Date(timelineData.target_timestamp).toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Component Size</p>
+                        <p className="font-bold text-gray-900">{timelineData.component_size} accounts</p>
+                      </div>
+                    </div>
+                  </div>
+                  {timelineData.events.length === 0 ? (
+                    <div className="text-gray-500 text-center py-8">
+                      No events in the connected component within the {timelineData.window_hours}-hour window before the refund.
+                    </div>
+                  ) : (
+                    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                              <th className="px-4 py-3 text-left font-semibold text-gray-700">Time (Relative)</th>
+                              <th className="px-4 py-3 text-left font-semibold text-gray-700">Absolute Time</th>
+                              <th className="px-4 py-3 text-left font-semibold text-gray-700">Customer</th>
+                              <th className="px-4 py-3 text-left font-semibold text-gray-700">Event Type</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {timelineData.events.map((event, idx) => {
+                              const eventTime = new Date(event.timestamp);
+                              const targetTime = new Date(timelineData.target_timestamp);
+                              const diffMinutes = Math.round((eventTime.getTime() - targetTime.getTime()) / 60000);
+                              const relativeTime = diffMinutes < 0
+                                ? `${Math.abs(diffMinutes)} min before`
+                                : diffMinutes > 0
+                                ? `${diffMinutes} min after`
+                                : 'at refund time';
+                              return (
+                                <tr key={idx} className={event.is_target ? 'bg-blue-50' : ''}>
+                                  <td className="px-4 py-3 font-mono text-gray-600">{relativeTime}</td>
+                                  <td className="px-4 py-3 font-mono text-gray-600">{eventTime.toLocaleString()}</td>
+                                  <td className="px-4 py-3">
+                                    <span className={event.is_target ? 'font-mono font-medium text-blue-600' : 'font-mono text-gray-900'}>
+                                      {event.customer_id}
+                                      {event.is_target && ' (target)'}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                      event.event_type === 'refund'
+                                        ? 'bg-red-100 text-red-800'
+                                        : 'bg-green-100 text-green-800'
+                                    }`}>
+                                      {event.event_type.toUpperCase()}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-gray-500 text-center py-8">
+                  Loading timeline...
+                </div>
+              )}
             </div>
           )}
         </div>

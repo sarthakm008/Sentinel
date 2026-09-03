@@ -142,8 +142,166 @@ export interface DemoRunResponse {
   }>;
 }
 
+export interface TimelineEvent {
+  customer_id: string;
+  timestamp: string;
+  event_type: 'order' | 'refund';
+  is_target: boolean;
+}
+
+export interface TimelineResponse {
+  target_customer: string;
+  target_refund_id: string;
+  target_timestamp: string;
+  window_hours: int;
+  events: TimelineEvent[];
+  component_size: number;
+}
+
 export interface HealthResponse {
   status: string;
   model_loaded: boolean;
   threshold_loaded: boolean;
+}
+
+// Refund Event types
+export interface RefundEventRequest {
+  refund_id: string;
+  customer_id: string;
+  order_id: string;
+  amount_inr: number;
+  event_time: string;
+  device_id: string;
+  address_id: string;
+  payment_token: string;
+  product_category: string;
+  order_amount_inr: number;
+  order_time: string;
+}
+
+export interface RefundEventResponse {
+  refund_id: string;
+  customer_id: string;
+  order_id: string;
+  risk_score: number;
+  risk_band: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  recommended_action: 'approve' | 'verify' | 'review' | 'hold';
+  threshold: number;
+  evidence: EvidenceItem[];
+  case_id: number;
+  created_at: string;
+}
+
+export interface RefundStatusResponse {
+  processed: boolean;
+  refund_id: string;
+  case_id?: number;
+  risk_score?: number;
+  risk_band?: string;
+  recommended_action?: string;
+  status?: string;
+  created_at?: string;
+}
+
+// Integration types
+export interface RefundQueueItem {
+  id: number;
+  refund_id: string;
+  customer_id: string;
+  order_id: string;
+  amount_inr: number;
+  event_time: string;
+  device_id: string;
+  address_id: string;
+  payment_token: string;
+  product_category: string;
+  order_amount_inr: number;
+  order_time: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  created_at: string;
+  processed_at?: string;
+  error_message?: string;
+}
+
+export interface RefundQueueListResponse {
+  items: RefundQueueItem[];
+  total: number;
+  page: number;
+  size: number;
+  pages: number;
+}
+
+export interface IntegrationStatusResponse {
+  connected: boolean;
+  monitoring: boolean;
+  last_processed_event?: string;
+  events_received: number;
+  events_processed: number;
+  events_failed: number;
+  queue_pending: number;
+  last_processed_refund_id?: string;
+  last_processed_risk_band?: string;
+  last_processed_action?: string;
+}
+
+export interface QueueControlRequest {
+  action: 'start' | 'stop' | 'pause' | 'resume';
+}
+
+export interface QueueControlResponse {
+  success: boolean;
+  message: string;
+  monitoring: boolean;
+}
+
+export interface EnqueueRefundRequest {
+  refund_id: string;
+  customer_id: string;
+  order_id: string;
+  amount_inr: number;
+  event_time: string;
+  device_id: string;
+  address_id: string;
+  payment_token: string;
+  product_category: string;
+  order_amount_inr: number;
+  order_time: string;
+}
+
+export interface EnqueueRefundResponse {
+  success: boolean;
+  message: string;
+  queue_id: number;
+  status: string;
+}
+
+export interface RefundQueueResponse {
+  items: RefundQueueItem[];
+  total: number;
+  page: number;
+  size: number;
+  pages: number;
+}
+
+export interface IntegrationStatusResponse {
+  connected: boolean;
+  monitoring: boolean;
+  last_processed_event?: string;
+  events_received: number;
+  events_processed: number;
+  events_failed: number;
+  queue_pending: number;
+  last_processed_refund_id?: string;
+  last_processed_risk_band?: string;
+  last_processed_action?: string;
+}
+
+export interface QueueControlRequest {
+  action: 'start' | 'stop' | 'pause' | 'resume';
+}
+
+export interface QueueControlResponse {
+  success: boolean;
+  message: string;
+  monitoring: boolean;
 }

@@ -69,10 +69,13 @@ async def get_evaluation():
             positive_count=m["positive_count"],
         ))
 
-    # Build Type F list
+    # Compute loss_avoided_vs_baseline for Type F
+    type_f_baseline_loss = type_f["baseline"]["financial_metrics"]["total_expected_loss"]
     type_f_models = []
     for name in ["baseline", "graph_enhanced", "temporal_enhanced", "sentinel", "graph_only", "growth_only"]:
         m = type_f[name]
+        model_loss = m["financial_metrics"]["total_expected_loss"]
+        loss_avoided = type_f_baseline_loss - model_loss
         type_f_models.append(EvaluationMetrics(
             model_name=name,
             pr_auc=m["pr_auc"],
@@ -80,17 +83,20 @@ async def get_evaluation():
             precision=m["precision"],
             recall=m["recall"],
             f1=m["f1"],
-            total_expected_loss=m["financial_metrics"]["total_expected_loss"],
-            loss_avoided_vs_baseline=m.get("loss_avoided_vs_baseline_inr", 0.0),
+            total_expected_loss=model_loss,
+            loss_avoided_vs_baseline=round(loss_avoided, 2),
             frozen_threshold=m["frozen_threshold"],
             sample_count=m["sample_count"],
             positive_count=m["positive_count"],
         ))
 
-    # Build future period list
+    # Compute loss_avoided_vs_baseline for Future Period
+    future_baseline_loss = future["baseline"]["financial_metrics"]["total_expected_loss"]
     future_models = []
     for name in ["baseline", "graph_enhanced", "temporal_enhanced", "sentinel", "graph_only", "growth_only"]:
         m = future[name]
+        model_loss = m["financial_metrics"]["total_expected_loss"]
+        loss_avoided = future_baseline_loss - model_loss
         future_models.append(EvaluationMetrics(
             model_name=name,
             pr_auc=m["pr_auc"],
@@ -98,8 +104,8 @@ async def get_evaluation():
             precision=m["precision"],
             recall=m["recall"],
             f1=m["f1"],
-            total_expected_loss=m["financial_metrics"]["total_expected_loss"],
-            loss_avoided_vs_baseline=m.get("loss_avoided_vs_baseline_inr", 0.0),
+            total_expected_loss=model_loss,
+            loss_avoided_vs_baseline=round(loss_avoided, 2),
             frozen_threshold=m["frozen_threshold"],
             sample_count=m["sample_count"],
             positive_count=m["positive_count"],

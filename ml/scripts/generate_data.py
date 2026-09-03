@@ -44,7 +44,7 @@ def generate_dataset(config: DataConfig, output_dir: str = "data"):
 
     # 2. Generate Legitimate Populations
     print("[1/5] Generating Legitimate Populations...")
-    legit_gen = LegitimateGenerator(rng, start_time, config.simulation_days)
+    legit_gen = LegitimateGenerator(rng, start_time, config.simulation_days, config)
     
     all_customers = []
     all_devices = []
@@ -86,7 +86,7 @@ def generate_dataset(config: DataConfig, output_dir: str = "data"):
 
     # 3. Generate Abuse Rings (A through F)
     print("[2/5] Generating Abuse Rings (Topologies A-F)...")
-    ring_gen = AbuseRingGenerator(rng, start_time, config.simulation_days)
+    ring_gen = AbuseRingGenerator(rng, start_time, config.simulation_days, config)
     rings = []
 
     ring_idx = 0

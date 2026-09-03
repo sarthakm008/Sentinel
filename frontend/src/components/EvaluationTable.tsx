@@ -8,9 +8,18 @@ interface EvaluationTableProps {
   highlightModel?: string;
 }
 
+const formatCurrency = (n: number) => `₹${n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+
+const formatLossVsBaseline = (lossAvoided: number) => {
+  if (lossAvoided >= 0) {
+    return { label: 'Loss Avoided', value: formatCurrency(lossAvoided), color: 'text-green-600' };
+  } else {
+    return { label: 'Additional Loss', value: formatCurrency(Math.abs(lossAvoided)), color: 'text-red-600' };
+  }
+};
+
 export function EvaluationTable({ title, models, highlightModel }: EvaluationTableProps) {
   const formatNumber = (n: number) => n.toLocaleString();
-  const formatCurrency = (n: number) => `₹${n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
   const formatPercent = (n: number) => `${(n * 100).toFixed(1)}%`;
 
   return (
@@ -29,7 +38,7 @@ export function EvaluationTable({ title, models, highlightModel }: EvaluationTab
               <th className="px-4 py-3 text-right font-semibold text-gray-700">Recall</th>
               <th className="px-4 py-3 text-right font-semibold text-gray-700">F1</th>
               <th className="px-4 py-3 text-right font-semibold text-gray-700">Total Loss</th>
-              <th className="px-4 py-3 text-right font-semibold text-gray-700">Loss Avoided</th>
+              <th className="px-4 py-3 text-right font-semibold text-gray-700">Loss vs Baseline</th>
               <th className="px-4 py-3 text-right font-semibold text-gray-700">Threshold</th>
             </tr>
           </thead>
@@ -37,6 +46,7 @@ export function EvaluationTable({ title, models, highlightModel }: EvaluationTab
             {models.map((m, idx) => {
               const isHighlight = highlightModel && m.model_name.includes(highlightModel);
               const isProduction = m.model_name.includes('Sentinel') && !m.model_name.includes('Interaction');
+              const lossInfo = formatLossVsBaseline(m.loss_avoided_vs_baseline);
               return (
                 <tr
                   key={idx}
@@ -62,8 +72,8 @@ export function EvaluationTable({ title, models, highlightModel }: EvaluationTab
                   <td className="px-4 py-3 text-right font-mono text-gray-700">{m.f1.toFixed(4)}</td>
                   <td className="px-4 py-3 text-right font-mono text-gray-700">{formatCurrency(m.total_expected_loss)}</td>
                   <td className="px-4 py-3 text-right font-mono">
-                    <span className={m.loss_avoided_vs_baseline >= 0 ? 'text-green-600' : 'text-red-600'}>
-                      {m.loss_avoided_vs_baseline >= 0 ? '−' : '+'}{formatCurrency(Math.abs(m.loss_avoided_vs_baseline))}
+                    <span className={lossInfo.color}>
+                      {lossInfo.label}: {lossInfo.value}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right font-mono text-gray-700">{m.frozen_threshold.toFixed(2)}</td>

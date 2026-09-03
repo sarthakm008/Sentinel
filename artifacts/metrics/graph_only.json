@@ -1,0 +1,23 @@
+{
+  "model_name": "graph_only",
+  "dataset": "held_out_test",
+  "sample_count": 8517,
+  "positive_count": 1170,
+  "frozen_threshold": 0.45,
+  "precision": 0.2535,
+  "recall": 0.4282,
+  "f1": 0.3185,
+  "pr_auc": 0.2594,
+  "roc_auc": 0.6128,
+  "financial_metrics": {
+    "false_negative_loss": 1516382.12,
+    "false_positive_loss": 295000.0,
+    "review_cost_tp": 25050.0,
+    "total_expected_loss": 1836432.12,
+    "fn_count": 669,
+    "fp_count": 1475,
+    "tp_count": 501,
+    "tn_count": 5872
+  },
+  "loss_avoided_vs_baseline_inr": -454459.18
+}

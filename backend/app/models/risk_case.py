@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Enum as SQLEnum
 from sqlalchemy.orm import relationship
 
 from backend.app.models.base import Base
@@ -53,3 +53,25 @@ class CaseDecision(Base):
     timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     case = relationship("RiskCase", back_populates="decisions")
+
+
+class RefundEventQueue(Base):
+    """Queued refund events from merchant's refund system awaiting Sentinel processing."""
+    __tablename__ = "refund_event_queue"
+
+    id = Column(Integer, primary_key=True, index=True)
+    refund_id = Column(String(64), index=True, nullable=False)
+    customer_id = Column(String(64), index=True, nullable=False)
+    order_id = Column(String(64), nullable=False)
+    amount_inr = Column(Float, nullable=False)
+    event_time = Column(DateTime, nullable=False)
+    device_id = Column(String(64), nullable=False)
+    address_id = Column(String(64), nullable=False)
+    payment_token = Column(String(64), nullable=False)
+    product_category = Column(String(32), nullable=False)
+    order_amount_inr = Column(Float, nullable=False)
+    order_time = Column(DateTime, nullable=False)
+    status = Column(SQLEnum("pending", "processing", "completed", "failed", name="queue_status"), default="pending", nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    processed_at = Column(DateTime, nullable=True)
+    error_message = Column(Text, nullable=True)

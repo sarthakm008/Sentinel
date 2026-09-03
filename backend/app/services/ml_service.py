@@ -32,19 +32,40 @@ from ml.models.trainer import SentinelModelWrapper
 from ml.evaluation.evaluator import ActionPolicy
 
 
+def _get_project_root() -> str:
+    """Get the project root directory by finding the directory containing 'artifacts'."""
+    current_dir = os.path.abspath(os.path.dirname(__file__))
+    
+    # Walk up the directory tree to find the project root (contains 'artifacts' directory)
+    while current_dir != os.path.dirname(current_dir):  # Stop at filesystem root
+        if os.path.exists(os.path.join(current_dir, "artifacts")):
+            return current_dir
+        current_dir = os.path.dirname(current_dir)
+    
+    # Fallback: assume current file location structure (4 levels up from ml_service.py)
+    current_file = os.path.abspath(__file__)
+    current_dir = os.path.dirname(current_file)
+    app_dir = os.path.dirname(current_dir)
+    backend_dir = os.path.dirname(app_dir)
+    project_root = os.path.dirname(backend_dir)
+    return project_root
+
+
 class SentinelInferenceService:
     """Production ML inference service for Sentinel risk scoring."""
 
     def __init__(
         self,
-        model_path: str = "artifacts/models/sentinel_model.joblib",
-        threshold_path: str = "artifacts/metrics/threshold.json",
-        data_dir: str = "data",
+        model_path: Optional[str] = None,
+        threshold_path: Optional[str] = None,
+        data_dir: Optional[str] = None,
     ):
-        self.model_path = model_path
-        self.threshold_path = threshold_path
-        self.data_dir = data_dir
-        self.raw_dir = os.path.join(data_dir, "raw")
+        project_root = _get_project_root()
+        
+        self.model_path = model_path or os.path.join(project_root, "artifacts", "models", "sentinel_model.joblib")
+        self.threshold_path = threshold_path or os.path.join(project_root, "artifacts", "metrics", "threshold.json")
+        self.data_dir = data_dir or os.path.join(project_root, "data")
+        self.raw_dir = os.path.join(self.data_dir, "raw")
 
         self.model: Optional[SentinelModelWrapper] = None
         self.threshold: float = 0.41
@@ -699,6 +720,60 @@ class SentinelInferenceService:
                 "shared_addresses": len(shared_addr_entities),
                 "shared_payments": len(shared_pm_entities),
             }
+        }
+
+    def get_timeline_events(self, refund_id: str, window_hours: int = 48) -> Optional[Dict[str, Any]]:
+        """Get PIT-correct timeline events for a refund's connected component.
+        
+        Returns events from the target customer's connected component within
+        window_hours before the refund timestamp. Only events strictly before
+        t_ref are included (PIT-correct).
+        """
+        ref_event = self.get_refund_event(refund_id)
+        if ref_event is None:
+            return None
+
+        t_ref = ref_event["dt_refund"]
+        cid = ref_event["customer_id"]
+        did = ref_event["device_id"]
+        aid = ref_event["address_id"]
+        pid = ref_event["payment_token_id"]
+
+        # Get connected component customers
+        shared_dev_entities = get_shared_entity_ids(self.g_pit, cid, "DEV_")
+        shared_addr_entities = get_shared_entity_ids(self.g_pit, cid, "ADDR_")
+        shared_pm_entities = get_shared_entity_ids(self.g_pit, cid, "PM_")
+
+        connected_custs = get_connected_customers(
+            self.g_pit, cid, shared_dev_entities, shared_addr_entities, shared_pm_entities
+        )
+        component_members = connected_custs.union({cid})
+
+        # Collect events from component members within window before t_ref
+        window_start = t_ref - pd.Timedelta(hours=window_hours)
+        events = []
+
+        for member_cid in component_members:
+            for ev_t, ev_type in self.comp_events.get(member_cid, []):
+                if ev_t >= window_start and ev_t < t_ref:
+                    # Get order/refund details for display
+                    events.append({
+                        "customer_id": member_cid,
+                        "timestamp": ev_t.isoformat(),
+                        "event_type": ev_type,  # "order" or "refund"
+                        "is_target": member_cid == cid,
+                    })
+
+        # Sort chronologically
+        events.sort(key=lambda x: x["timestamp"])
+
+        return {
+            "target_customer": cid,
+            "target_refund_id": refund_id,
+            "target_timestamp": t_ref.isoformat(),
+            "window_hours": window_hours,
+            "events": events,
+            "component_size": len(component_members),
         }
 
 

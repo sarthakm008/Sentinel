@@ -1,0 +1,23 @@
+{
+  "model_name": "sentinel",
+  "dataset": "held_out_test",
+  "sample_count": 8517,
+  "positive_count": 1170,
+  "frozen_threshold": 0.41,
+  "precision": 0.3179,
+  "recall": 0.6444,
+  "f1": 0.4257,
+  "pr_auc": 0.4493,
+  "roc_auc": 0.7993,
+  "financial_metrics": {
+    "false_negative_loss": 1055057.66,
+    "false_positive_loss": 323600.0,
+    "review_cost_tp": 37700.0,
+    "total_expected_loss": 1416357.66,
+    "fn_count": 416,
+    "fp_count": 1618,
+    "tp_count": 754,
+    "tn_count": 5729
+  },
+  "loss_avoided_vs_baseline_inr": -34384.72
+}

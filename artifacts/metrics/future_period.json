@@ -1,0 +1,156 @@
+{
+  "baseline": {
+    "model_name": "baseline",
+    "dataset": "future_period_holdout",
+    "sample_count": 3343,
+    "positive_count": 449,
+    "frozen_threshold": 0.42,
+    "precision": 0.2409,
+    "recall": 0.7706,
+    "f1": 0.3671,
+    "pr_auc": 0.3202,
+    "roc_auc": 0.7726,
+    "financial_metrics": {
+      "false_negative_loss": 300556.42,
+      "false_positive_loss": 218000.0,
+      "review_cost_tp": 17300.0,
+      "total_expected_loss": 535856.42,
+      "fn_count": 103,
+      "fp_count": 1090,
+      "tp_count": 346,
+      "tn_count": 1804
+    }
+  },
+  "graph_enhanced": {
+    "model_name": "graph_enhanced",
+    "dataset": "future_period_holdout",
+    "sample_count": 3343,
+    "positive_count": 449,
+    "frozen_threshold": 0.37,
+    "precision": 0.3164,
+    "recall": 0.6526,
+    "f1": 0.4262,
+    "pr_auc": 0.448,
+    "roc_auc": 0.8081,
+    "financial_metrics": {
+      "false_negative_loss": 419300.37,
+      "false_positive_loss": 126600.0,
+      "review_cost_tp": 14650.0,
+      "total_expected_loss": 560550.37,
+      "fn_count": 156,
+      "fp_count": 633,
+      "tp_count": 293,
+      "tn_count": 2261
+    }
+  },
+  "temporal_enhanced": {
+    "model_name": "temporal_enhanced",
+    "dataset": "future_period_holdout",
+    "sample_count": 3343,
+    "positive_count": 449,
+    "frozen_threshold": 0.35,
+    "precision": 0.2619,
+    "recall": 0.8597,
+    "f1": 0.4015,
+    "pr_auc": 0.404,
+    "roc_auc": 0.8206,
+    "financial_metrics": {
+      "false_negative_loss": 208036.21,
+      "false_positive_loss": 217600.0,
+      "review_cost_tp": 19300.0,
+      "total_expected_loss": 444936.21,
+      "fn_count": 63,
+      "fp_count": 1088,
+      "tp_count": 386,
+      "tn_count": 1806
+    }
+  },
+  "sentinel": {
+    "model_name": "sentinel",
+    "dataset": "future_period_holdout",
+    "sample_count": 3343,
+    "positive_count": 449,
+    "frozen_threshold": 0.41,
+    "precision": 0.3179,
+    "recall": 0.5523,
+    "f1": 0.4036,
+    "pr_auc": 0.4425,
+    "roc_auc": 0.7941,
+    "financial_metrics": {
+      "false_negative_loss": 556069.57,
+      "false_positive_loss": 106400.0,
+      "review_cost_tp": 12400.0,
+      "total_expected_loss": 674869.57,
+      "fn_count": 201,
+      "fp_count": 532,
+      "tp_count": 248,
+      "tn_count": 2362
+    }
+  },
+  "graph_only": {
+    "model_name": "graph_only",
+    "dataset": "future_period_holdout",
+    "sample_count": 3343,
+    "positive_count": 449,
+    "frozen_threshold": 0.45,
+    "precision": 0.2482,
+    "recall": 0.4699,
+    "f1": 0.3249,
+    "pr_auc": 0.2361,
+    "roc_auc": 0.6325,
+    "financial_metrics": {
+      "false_negative_loss": 594607.23,
+      "false_positive_loss": 127800.0,
+      "review_cost_tp": 10550.0,
+      "total_expected_loss": 732957.23,
+      "fn_count": 238,
+      "fp_count": 639,
+      "tp_count": 211,
+      "tn_count": 2255
+    }
+  },
+  "growth_only": {
+    "model_name": "growth_only",
+    "dataset": "future_period_holdout",
+    "sample_count": 3343,
+    "positive_count": 449,
+    "frozen_threshold": 0.45,
+    "precision": 0.3048,
+    "recall": 0.657,
+    "f1": 0.4164,
+    "pr_auc": 0.467,
+    "roc_auc": 0.7575,
+    "financial_metrics": {
+      "false_negative_loss": 384971.63,
+      "false_positive_loss": 134600.0,
+      "review_cost_tp": 14750.0,
+      "total_expected_loss": 534321.63,
+      "fn_count": 154,
+      "fp_count": 673,
+      "tp_count": 295,
+      "tn_count": 2221
+    }
+  },
+  "sentinel_interaction": {
+    "model_name": "sentinel_interaction",
+    "dataset": "future_period_holdout",
+    "sample_count": 3343,
+    "positive_count": 449,
+    "frozen_threshold": 0.39,
+    "precision": 0.3265,
+    "recall": 0.6058,
+    "f1": 0.4243,
+    "pr_auc": 0.4556,
+    "roc_auc": 0.8061,
+    "financial_metrics": {
+      "false_negative_loss": 486004.71,
+      "false_positive_loss": 112200.0,
+      "review_cost_tp": 13600.0,
+      "total_expected_loss": 611804.71,
+      "fn_count": 177,
+      "fp_count": 561,
+      "tp_count": 272,
+      "tn_count": 2333
+    }
+  }
+}

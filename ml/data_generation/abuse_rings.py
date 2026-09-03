@@ -24,10 +24,11 @@ class AbuseRing:
 class AbuseRingGenerator:
     """Generates coordinated refund abuse rings across topologies A-F."""
 
-    def __init__(self, rng: np.random.Generator, start_time: datetime, simulation_days: int):
+    def __init__(self, rng: np.random.Generator, start_time: datetime, simulation_days: int, config=None):
         self.rng = rng
         self.start_time = start_time
         self.simulation_days = simulation_days
+        self.config = config
         
         self.device_types = ["mobile", "desktop", "tablet"]
         self.device_probs = [0.70, 0.22, 0.08]
@@ -39,11 +40,23 @@ class AbuseRingGenerator:
         """Sample ring size from a common distribution across all types to ensure marginal matching."""
         return int(self.rng.integers(4, 28))
 
-    def _sample_account_creation_time(self, attack_start_day: int) -> datetime:
-        """Sample account creation time relative to attack start day."""
-        lead_time = self.rng.uniform(2, 90)
-        creation_day = max(-180, attack_start_day - lead_time)
-        return self.start_time + timedelta(days=creation_day, seconds=int(self.rng.integers(0, 86400)))
+    def _sample_account_creation_time(self) -> datetime:
+        """Sample account creation time from shared distribution matching legitimate populations."""
+        if self.config:
+            min_days = self.config.account_age_min_days_before_start
+            max_days = self.config.account_age_max_days_after_start
+        else:
+            min_days = -365
+            max_days = int(self.simulation_days * 0.8)
+        
+        offset_days = self.rng.uniform(min_days, max_days)
+        return self.start_time + timedelta(days=offset_days, seconds=int(self.rng.integers(0, 86400)))
+
+    def _sample_attack_start_day(self, earliest_account_creation_day: float) -> int:
+        """Sample attack start day after all ring accounts are created."""
+        min_attack_day = int(max(15, earliest_account_creation_day + 1))
+        max_attack_day = max(min_attack_day + 1, self.simulation_days - 20)
+        return int(self.rng.integers(min_attack_day, max_attack_day))
 
     def generate_ring(
         self,
@@ -55,16 +68,25 @@ class AbuseRingGenerator:
         ring_id = f"RING_{ring_idx:04d}"
         size = self._sample_ring_size()
         
-        attack_start_day = int(self.rng.integers(15, max(16, self.simulation_days - 20)))
-        attack_duration_days = int(self.rng.integers(3, 21))
-        
         m = self.rng.choice(merchants)
         target_merchant_ids = [m.merchant_id]
         target_category = m.primary_category
 
+        # 1. Pre-sample account creation times for all ring members from shared distribution
+        account_creation_times = [self._sample_account_creation_time() for _ in range(size)]
+        
+        # 2. Find earliest account creation day (relative to simulation start)
+        earliest_creation_day = min((t - self.start_time).total_seconds() / 86400.0 for t in account_creation_times)
+        
+        # 3. Sample attack start day after all accounts are created
+        attack_start_day = self._sample_attack_start_day(earliest_creation_day)
+        attack_duration_days = int(self.rng.integers(3, 21))
+        
         customers, devices, addresses, payments = [], [], [], []
         cust_bindings = {}
 
+        creation_idx = 0
+        
         if ring_type == "type_a_dense":
             id_state["addr"] += 1
             aid = f"ADDR_{id_state['addr']:06d}"
@@ -91,13 +113,14 @@ class AbuseRingGenerator:
                 cid = f"CUS_{id_state['cust']:06d}"
                 c = Customer(
                     customer_id=cid,
-                    account_created_at=self._sample_account_creation_time(attack_start_day),
+                    account_created_at=account_creation_times[creation_idx],
                     merchant_id=m.merchant_id,
                     segment="standard",
                     archetype=ring_type,
                     ring_id=ring_id,
                     is_abuse=True
                 )
+                creation_idx += 1
                 customers.append(c)
                 cust_bindings[cid] = {
                     "devices": shared_devs,
@@ -141,13 +164,14 @@ class AbuseRingGenerator:
                 cid = f"CUS_{id_state['cust']:06d}"
                 c = Customer(
                     customer_id=cid,
-                    account_created_at=self._sample_account_creation_time(attack_start_day),
+                    account_created_at=account_creation_times[creation_idx],
                     merchant_id=m.merchant_id,
                     segment="standard",
                     archetype=ring_type,
                     ring_id=ring_id,
                     is_abuse=True
                 )
+                creation_idx += 1
                 customers.append(c)
 
                 assigned_devs = [ring_devs[i % len(ring_devs)]]
@@ -180,13 +204,14 @@ class AbuseRingGenerator:
 
                 c = Customer(
                     customer_id=cid,
-                    account_created_at=self._sample_account_creation_time(attack_start_day),
+                    account_created_at=account_creation_times[creation_idx],
                     merchant_id=m.merchant_id,
                     segment="standard",
                     archetype=ring_type,
                     ring_id=ring_id,
                     is_abuse=True
                 )
+                creation_idx += 1
                 customers.append(c)
                 devices.append(Device(device_id=did, device_type=self.rng.choice(self.device_types, p=self.device_probs)))
                 addresses.append(Address(address_id=aid, region=self.rng.choice(self.regions), address_type="standard"))
@@ -219,13 +244,14 @@ class AbuseRingGenerator:
 
                 c = Customer(
                     customer_id=cid,
-                    account_created_at=self._sample_account_creation_time(attack_start_day),
+                    account_created_at=account_creation_times[creation_idx],
                     merchant_id=m.merchant_id,
                     segment="standard",
                     archetype=ring_type,
                     ring_id=ring_id,
                     is_abuse=True
                 )
+                creation_idx += 1
                 customers.append(c)
                 devices.append(Device(device_id=did, device_type=self.rng.choice(self.device_types, p=self.device_probs)))
                 addresses.append(Address(address_id=aid, region=self.rng.choice(self.regions), address_type="standard"))
@@ -260,13 +286,14 @@ class AbuseRingGenerator:
 
                 c = Customer(
                     customer_id=cid,
-                    account_created_at=self._sample_account_creation_time(attack_start_day),
+                    account_created_at=account_creation_times[creation_idx],
                     merchant_id=m.merchant_id,
                     segment="standard",
                     archetype=ring_type,
                     ring_id=ring_id,
                     is_abuse=True
                 )
+                creation_idx += 1
                 customers.append(c)
                 devices.append(Device(device_id=did, device_type=self.rng.choice(self.device_types, p=self.device_probs)))
                 addresses.append(Address(address_id=aid, region=self.rng.choice(self.regions), address_type="standard"))
@@ -291,13 +318,14 @@ class AbuseRingGenerator:
                 cid = f"CUS_{id_state['cust']:06d}"
                 c = Customer(
                     customer_id=cid,
-                    account_created_at=self._sample_account_creation_time(attack_start_day),
+                    account_created_at=account_creation_times[creation_idx],
                     merchant_id=m.merchant_id,
                     segment="standard",
                     archetype=ring_type,
                     ring_id=ring_id,
                     is_abuse=True
                 )
+                creation_idx += 1
                 customers.append(c)
 
                 if i == 0:
@@ -360,6 +388,8 @@ class AbuseRingGenerator:
                     "attack_start_day": attack_start_day,
                     "attack_duration_days": attack_duration_days,
                 }
+        else:
+            raise ValueError(f"Unknown ring_type: {ring_type}")
 
         ring = AbuseRing(
             ring_id=ring_id,

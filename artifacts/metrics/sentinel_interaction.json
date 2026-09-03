@@ -1,0 +1,23 @@
+{
+  "model_name": "sentinel_interaction",
+  "dataset": "held_out_test",
+  "sample_count": 8517,
+  "positive_count": 1170,
+  "frozen_threshold": 0.39,
+  "precision": 0.3158,
+  "recall": 0.6658,
+  "f1": 0.4284,
+  "pr_auc": 0.4485,
+  "roc_auc": 0.8014,
+  "financial_metrics": {
+    "false_negative_loss": 1005605.06,
+    "false_positive_loss": 337600.0,
+    "review_cost_tp": 38950.0,
+    "total_expected_loss": 1382155.06,
+    "fn_count": 391,
+    "fp_count": 1688,
+    "tp_count": 779,
+    "tn_count": 5659
+  },
+  "loss_avoided_vs_baseline_inr": -182.12
+}

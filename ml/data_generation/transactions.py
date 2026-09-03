@@ -26,6 +26,27 @@ class TransactionEngine:
             "beauty": (6.9, 0.5),          # ~1,000 INR median
             "books": (6.2, 0.4),           # ~500 INR median
         }
+        
+        # Refund delay mixture components: (weight, lognormal_mean, lognormal_sigma, min_days, max_days)
+        self.refund_delay_mixture = getattr(config, "refund_delay_mixture", [
+            (0.50, 1.1, 0.45, 1.0, 10.0),
+            (0.35, 1.8, 0.50, 3.0, 21.0),
+            (0.15, 2.5, 0.60, 7.0, 45.0),
+        ])
+        
+        # Precompute cumulative weights for mixture sampling
+        self._delay_cumweights = np.cumsum([w for w, _, _, _, _ in self.refund_delay_mixture])
+
+    def _sample_refund_delay_days(self) -> float:
+        """Sample refund delay from shared mixture distribution (identical for legitimate and abuse)."""
+        # Choose mixture component
+        u = self.rng.random()
+        comp_idx = int(np.searchsorted(self._delay_cumweights, u))
+        comp_idx = min(comp_idx, len(self.refund_delay_mixture) - 1)
+        
+        _, ln_mean, ln_sigma, min_days, max_days = self.refund_delay_mixture[comp_idx]
+        base_delay = float(self.rng.lognormal(mean=ln_mean, sigma=ln_sigma))
+        return float(np.clip(base_delay, min_days, max_days))
 
     def simulate(
         self,
@@ -127,11 +148,8 @@ class TransactionEngine:
                     refund_counter += 1
                     rid = f"REF_{refund_counter:07d}"
 
-                    # Delay between order and refund (strictly > 0)
-                    if in_attack:
-                        delay_days = self.rng.uniform(0.75, 4.5)
-                    else:
-                        delay_days = self.rng.uniform(1.0, 12.0)
+                    # Shared refund delay distribution (identical for legitimate and abuse)
+                    delay_days = self._sample_refund_delay_days()
 
                     refund_dt = order_dt + timedelta(days=delay_days)
 

@@ -1,0 +1,23 @@
+{
+  "model_name": "baseline",
+  "dataset": "held_out_test",
+  "sample_count": 8517,
+  "positive_count": 1170,
+  "frozen_threshold": 0.42,
+  "precision": 0.2351,
+  "recall": 0.7453,
+  "f1": 0.3575,
+  "pr_auc": 0.3053,
+  "roc_auc": 0.746,
+  "financial_metrics": {
+    "false_negative_loss": 770972.94,
+    "false_positive_loss": 567400.0,
+    "review_cost_tp": 43600.0,
+    "total_expected_loss": 1381972.94,
+    "fn_count": 298,
+    "fp_count": 2837,
+    "tp_count": 872,
+    "tn_count": 4510
+  },
+  "loss_avoided_vs_baseline_inr": 0.0
+}

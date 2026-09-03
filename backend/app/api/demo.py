@@ -2,6 +2,7 @@
 
 import json
 import os
+from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
@@ -9,6 +10,10 @@ from typing import List, Dict, Any
 from backend.app.schemas.risk import DemoScenario, DemoResetResponse
 from backend.app.models.base import get_db
 from backend.app.models.risk_case import RiskCase, CaseEvidence, CaseDecision
+from backend.app.services.ml_service import get_inference_service
+from backend.app.api.events import _persist_case
+from backend.app.models.risk_case import RefundEventQueue
+from backend.app.services.queue_monitor import get_queue_monitor
 
 router = APIRouter(prefix="/demo", tags=["demo"])
 
@@ -43,11 +48,12 @@ async def reset_demo(
     db.query(CaseDecision).delete()
     db.query(CaseEvidence).delete()
     db.query(RiskCase).delete()
+    db.query(RefundEventQueue).delete()
     db.commit()
 
     return DemoResetResponse(
         success=True,
-        message="Demo state reset. All cases and decisions cleared."
+        message="Demo state reset. All cases, decisions, and queued events cleared."
     )
 
 
@@ -55,58 +61,54 @@ async def reset_demo(
 async def run_demo(
     db: Session = Depends(get_db),
 ):
-    """Run the full demo scenario: score all demo refunds and create cases."""
-    from backend.app.services.ml_service import get_inference_service
-
+    """Run the full demo scenario: process all demo refunds through the ingestion pipeline."""
     service = get_inference_service()
 
     # Clear existing demo data
     db.query(CaseDecision).delete()
     db.query(CaseEvidence).delete()
     db.query(RiskCase).delete()
+    db.query(RefundEventQueue).delete()
     db.commit()
 
     results = []
     for refund_id in DEMO_REFUND_IDS:
+        # Process each refund through the ingestion pipeline (synchronous for demo)
+        # This mimics the /api/events/refund endpoint logic
         result = service.score_refund(refund_id)
-        if result:
-            # Persist case
-            case = RiskCase(
-                customer_id=result["customer_id"],
-                refund_id=result["refund_id"],
-                order_id=result["order_id"],
-                risk_score=result["risk_score"],
-                risk_band=result["risk_band"],
-                recommended_action=result["recommended_action"],
-                status="pending",
-            )
-            db.add(case)
-            db.flush()
+        if not result:
+            # Skip refunds not found in historical data
+            continue
 
-            for ev in result["evidence"]:
-                case_evidence = CaseEvidence(
-                    case_id=case.id,
-                    category=ev["category"],
-                    metric=ev["metric"],
-                    value=str(ev["value"]),
-                    description=ev["description"],
-                )
-                db.add(case_evidence)
-
+        # Check for duplicate (simulating the ingestion endpoint's check)
+        existing_case = db.query(RiskCase).filter(RiskCase.refund_id == refund_id).first()
+        if existing_case:
             results.append({
                 "refund_id": refund_id,
-                "case_id": case.id,
+                "case_id": existing_case.id,
                 "customer_id": result["customer_id"],
                 "risk_score": result["risk_score"],
                 "risk_band": result["risk_band"],
                 "recommended_action": result["recommended_action"],
                 "evidence_count": len(result["evidence"]),
             })
+            continue
 
-    db.commit()
+        # Persist case using the same persistence logic as the ingestion endpoint
+        case = _persist_case(db, result)
+
+        results.append({
+            "refund_id": refund_id,
+            "case_id": case.id,
+            "customer_id": result["customer_id"],
+            "risk_score": result["risk_score"],
+            "risk_band": result["risk_band"],
+            "recommended_action": result["recommended_action"],
+            "evidence_count": len(result["evidence"]),
+        })
 
     return {
         "success": True,
-        "message": f"Demo completed: {len(results)} cases created",
+        "message": f"Demo completed: {len(results)} cases created via ingestion pipeline",
         "cases": results,
     }

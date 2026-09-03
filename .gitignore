@@ -36,20 +36,15 @@ node_modules/
 frontend/node_modules/
 frontend/dist/
 
-# Data artifacts (large files)
+# Data artifacts - ignore CSVs but KEEP parquet and JSON for deployment
 data/raw/*.csv
-data/raw/*.parquet
 data/processed/*.csv
-data/processed/*.parquet
 data/splits/*.csv
 data/demo/*.csv
 
-# ML artifacts
+# ML artifacts - KEEP joblib models and metrics for deployment, ignore plots/reports
 artifacts/models/*.pkl
-artifacts/models/*.joblib
-artifacts/models/*.json
 artifacts/plots/*.png
-artifacts/metrics/*.json
 artifacts/reports/*.md
 
 # Database

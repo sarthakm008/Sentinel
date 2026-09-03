@@ -10,10 +10,11 @@ from ml.data_generation.entities import Address, Customer, Device, Merchant, Pay
 class LegitimateGenerator:
     """Generates realistic legitimate customer populations and shared entity bindings."""
 
-    def __init__(self, rng: np.random.Generator, start_time: datetime, simulation_days: int):
+    def __init__(self, rng: np.random.Generator, start_time: datetime, simulation_days: int, config=None):
         self.rng = rng
         self.start_time = start_time
         self.simulation_days = simulation_days
+        self.config = config
         
         self.device_types = ["mobile", "desktop", "tablet"]
         self.device_probs = [0.70, 0.22, 0.08]
@@ -24,7 +25,13 @@ class LegitimateGenerator:
         self.segment_probs = [0.55, 0.15, 0.20, 0.10]
 
     def _random_creation_time(self) -> datetime:
-        offset_days = self.rng.uniform(-365, self.simulation_days * 0.8)
+        if self.config:
+            min_days = self.config.account_age_min_days_before_start
+            max_days = self.config.account_age_max_days_after_start
+        else:
+            min_days = -365
+            max_days = int(self.simulation_days * 0.8)
+        offset_days = self.rng.uniform(min_days, max_days)
         return self.start_time + timedelta(days=offset_days, seconds=int(self.rng.integers(0, 86400)))
 
     def generate_independent(

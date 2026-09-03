@@ -27,6 +27,14 @@ export function Evaluation() {
 
   const formatCurrency = (n: number) => `₹${n.toLocaleString(undefined, { minimumFractionDigits: 0 })}`;
 
+  const formatLossVsBaseline = (lossAvoided: number) => {
+    if (lossAvoided >= 0) {
+      return `Loss Avoided: ${formatCurrency(lossAvoided)}`;
+    } else {
+      return `Additional Loss vs Baseline: ${formatCurrency(Math.abs(lossAvoided))}`;
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -67,7 +75,7 @@ export function Evaluation() {
           </div>
           <div className="text-right">
             <p className="text-2xl font-bold text-green-800">PR-AUC: {data.production_candidate.pr_auc.toFixed(4)}</p>
-            <p className="text-sm text-green-700">Loss Avoided vs Baseline: {formatCurrency(data.production_candidate.loss_avoided_vs_baseline)}</p>
+            <p className="text-sm text-green-700">{formatLossVsBaseline(data.production_candidate.loss_avoided_vs_baseline)}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">

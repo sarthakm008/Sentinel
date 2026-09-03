@@ -134,8 +134,118 @@ class DemoResetResponse(BaseModel):
     message: str
 
 
+class TimelineEvent(BaseModel):
+    """Single timeline event."""
+    customer_id: str
+    timestamp: str
+    event_type: str  # "order" or "refund"
+    is_target: bool
+
+
+class TimelineResponse(BaseModel):
+    """Timeline events response."""
+    target_customer: str
+    target_refund_id: str
+    target_timestamp: str
+    window_hours: int
+    events: List[TimelineEvent]
+    component_size: int
+
+
+class RefundEventRequest(BaseModel):
+    """Incoming refund event from merchant."""
+    refund_id: str = Field(..., description="Unique refund event identifier")
+    customer_id: str = Field(..., description="Customer identifier")
+    order_id: str = Field(..., description="Order identifier")
+    amount_inr: float = Field(..., gt=0, description="Refund amount in INR")
+    event_time: str = Field(..., description="ISO8601 timestamp of refund request")
+    device_id: str = Field(..., description="Device identifier")
+    address_id: str = Field(..., description="Address identifier")
+    payment_token: str = Field(..., description="Payment token identifier")
+    product_category: str = Field(..., description="Product category of the order")
+    order_amount_inr: float = Field(..., gt=0, description="Original order amount in INR")
+    order_time: str = Field(..., description="ISO8601 timestamp of original order")
+
+
+class RefundEventResponse(BaseModel):
+    """Response from refund ingestion endpoint."""
+    refund_id: str
+    customer_id: str
+    order_id: str
+    risk_score: float = Field(..., ge=0.0, le=1.0, description="Risk score [0,1]")
+    risk_band: str = Field(..., description="Risk band: LOW, MEDIUM, HIGH, CRITICAL")
+    recommended_action: str = Field(..., description="Recommended action: approve, verify, review, hold")
+    threshold: float = Field(..., description="Frozen decision threshold")
+    evidence: List[EvidenceItem] = Field(default_factory=list)
+    case_id: int = Field(..., description="Created case ID")
+    created_at: datetime
+
+
 class HealthResponse(BaseModel):
     """Health check response."""
     status: str
     model_loaded: bool
     threshold_loaded: bool
+
+
+class RefundQueueItem(BaseModel):
+    """Single refund event in the queue."""
+    id: int
+    refund_id: str
+    customer_id: str
+    order_id: str
+    amount_inr: float
+    event_time: datetime
+    device_id: str
+    address_id: str
+    payment_token: str
+    product_category: str
+    order_amount_inr: float
+    order_time: datetime
+    status: str  # pending, processing, completed, failed
+    created_at: datetime
+    processed_at: Optional[datetime] = None
+    error_message: Optional[str] = None
+
+
+class RefundQueueListResponse(BaseModel):
+    """Response for listing queued refund events."""
+    items: List[RefundQueueItem]
+    total: int
+    page: int
+    size: int
+    pages: int
+
+
+class IntegrationStatusResponse(BaseModel):
+    """Integration status for merchant refund monitoring."""
+    connected: bool
+    monitoring: bool
+    last_processed_event: Optional[datetime] = None
+    events_received: int
+    events_processed: int
+    events_failed: int
+    queue_pending: int
+    last_processed_refund_id: Optional[str] = None
+    last_processed_risk_band: Optional[str] = None
+    last_processed_action: Optional[str] = None
+
+
+class QueueControlRequest(BaseModel):
+    """Request to control queue monitoring."""
+    action: str  # "start", "stop", "pause", "resume"
+
+
+class QueueControlResponse(BaseModel):
+    """Response for queue control actions."""
+    success: bool
+    message: str
+    monitoring: bool
+
+
+class EnqueueRefundResponse(BaseModel):
+    """Response for enqueue refund endpoint."""
+    success: bool
+    message: str
+    queue_id: int
+    status: str

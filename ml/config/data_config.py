@@ -64,3 +64,16 @@ class DataConfig:
         "wrong_size", "defective_item", "not_as_described", 
         "arrived_late", "damaged_in_transit", "changed_mind"
     ])
+
+    # Shared refund delay distribution (lognormal mixture, identical for legitimate and abuse)
+    # Component format: (weight, lognormal_mean, lognormal_sigma, min_days, max_days)
+    refund_delay_mixture: List[tuple] = field(default_factory=lambda: [
+        (0.50, 1.1, 0.45, 1.0, 10.0),    # standard logistics: median ~3.5d
+        (0.35, 1.8, 0.50, 3.0, 21.0),    # extended processing: median ~6.5d
+        (0.15, 2.5, 0.60, 7.0, 45.0),    # dispute/resolution: median ~12d
+    ])
+
+    # Shared account creation time distribution (uniform, identical for legitimate and abuse)
+    # Days relative to simulation start (negative = before start)
+    account_age_min_days_before_start: int = -365
+    account_age_max_days_after_start: int = 144  # 0.8 * simulation_days

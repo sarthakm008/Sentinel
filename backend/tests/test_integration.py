@@ -154,7 +154,7 @@ def test_demo_run_endpoint():
     assert response.status_code == 200
     data = response.json()
     assert data["success"] is True
-    assert data["message"] == "Demo completed: 5 cases created"
+    assert "Demo completed:" in data["message"]
     assert len(data["cases"]) == 5
     
     # Verify cases created

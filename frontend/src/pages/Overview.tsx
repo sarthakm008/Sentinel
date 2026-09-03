@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { casesApi, demoApi, evaluationApi } from '../api';
 import { CaseResponse, EvaluationResponse } from '../types';
 import { CaseCard } from '../components/CaseCard';
+import { MerchantIntegration } from '../components/MerchantIntegration';
 
 export function Overview() {
   const navigate = useNavigate();
@@ -74,6 +75,18 @@ export function Overview() {
 
   const formatCurrency = (n: number) => `₹${n.toLocaleString(undefined, { minimumFractionDigits: 0 })}`;
 
+  const formatLossVsBaseline = (lossAvoided: number) => {
+    if (lossAvoided >= 0) {
+      return `Loss Avoided: ${formatCurrency(lossAvoided)}`;
+    } else {
+      return `Additional Loss vs Baseline: ${formatCurrency(Math.abs(lossAvoided))}`;
+    }
+  };
+
+  const handleCaseCreated = (caseId: number) => {
+    loadDashboard();
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -108,6 +121,9 @@ export function Overview() {
         </div>
       </div>
 
+      {/* Merchant Integration / Live Refund Monitoring */}
+      <MerchantIntegration onCaseCreated={handleCaseCreated} />
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-white border border-gray-200 rounded-lg p-6">
@@ -139,7 +155,7 @@ export function Overview() {
             <div>
               <p className="text-sm font-semibold text-green-800">Production Candidate: Full Sentinel (39 features)</p>
               <p className="text-sm text-green-700 mt-1">
-                PR-AUC: {sentinel.pr_auc.toFixed(4)} | Recall: {sentinel.recall.toFixed(4)} | Precision: {sentinel.precision.toFixed(4)} | Loss Avoided: {formatCurrency(sentinel.loss_avoided_vs_baseline)}
+                PR-AUC: {sentinel.pr_auc.toFixed(4)} | Recall: {sentinel.recall.toFixed(4)} | Precision: {sentinel.precision.toFixed(4)} | {formatLossVsBaseline(sentinel.loss_avoided_vs_baseline)}
               </p>
             </div>
             <Link
@@ -161,7 +177,7 @@ export function Overview() {
         <div className="divide-y divide-gray-100">
           {recentCases.length === 0 ? (
             <div className="p-8 text-center text-gray-500">
-              No cases yet. Click "Run Demo Scenario" to generate sample cases.
+              No cases yet. Use the "Send Test Refund" tool above or run the demo scenario.
             </div>
           ) : (
             recentCases.map((caseData) => (

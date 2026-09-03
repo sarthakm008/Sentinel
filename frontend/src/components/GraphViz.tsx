@@ -1,4 +1,4 @@
-// GraphViz component - network visualization using React Flow
+// GraphViz component - improved network visualization with radial/force-directed layout
 
 import React, { useEffect, useRef } from 'react';
 import {
@@ -7,7 +7,7 @@ import {
   GraphResponse,
 } from '../types';
 
-// Simple canvas-based graph visualization (no external deps)
+// Canvas-based graph visualization with improved radial layout
 interface GraphVizProps {
   data: GraphResponse | null;
   width?: number;
@@ -28,7 +28,30 @@ const NODE_SHAPES: Record<string, 'circle' | 'square' | 'diamond' | 'hexagon'> =
   payment: 'hexagon',
 };
 
-export function GraphViz({ data, width = 600, height = 400 }: GraphVizProps) {
+const NODE_RADIUS = 24;
+const TARGET_RADIUS = 28;
+const ENTITY_RADIUS = 20;
+const NEIGHBOR_RADIUS = 18;
+const MIN_NODE_DISTANCE = 90;
+const EDGE_LENGTH = 120;
+
+interface NodePosition {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  fixed?: boolean;
+}
+
+interface LayoutNode extends GraphNodeType {
+  layoutX: number;
+  layoutY: number;
+  vx: number;
+  vy: number;
+  fixed?: boolean;
+}
+
+export function GraphViz({ data, width = 700, height = 500 }: GraphVizProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
 
@@ -45,69 +68,146 @@ export function GraphViz({ data, width = 600, height = 400 }: GraphVizProps) {
     const nodes = data.nodes;
     const edges = data.edges;
 
-    // Force-directed layout (simple)
-    const positions: Record<string, { x: number; y: number; vx: number; vy: number }> = {};
+    // Find target customer
+    const targetNode = nodes.find(n => n.is_target);
+    const targetId = targetNode?.id;
 
-    // Initialize positions
-    nodes.forEach((node, i) => {
-      const angle = (i / nodes.length) * 2 * Math.PI;
-      const radius = Math.min(width, height) * 0.3;
-      positions[node.id] = {
-        x: width / 2 + radius * Math.cos(angle),
-        y: height / 2 + radius * Math.sin(angle),
+    // Build adjacency for connected customers
+    const customerNodes = nodes.filter(n => n.type === 'customer');
+    const entityNodes = nodes.filter(n => n.type !== 'customer');
+    const connectedCustomers = customerNodes.filter(n => n.id !== targetId);
+    
+    // Separate entities by type
+    const devices = entityNodes.filter(n => n.type === 'device');
+    const addresses = entityNodes.filter(n => n.type === 'address');
+    const payments = entityNodes.filter(n => n.type === 'payment');
+
+    // Initialize positions with radial layout centered on target
+    const positions: Record<string, NodePosition> = {};
+
+    // Place target at center
+    if (targetNode) {
+      positions[targetId] = {
+        x: width / 2,
+        y: height / 2,
         vx: 0,
         vy: 0,
+        fixed: true,
       };
-    });
+    }
 
-    // Force simulation
+    // Helper to place nodes in a ring around center
+    const placeInRing = (nodeIds: string[], centerX: number, centerY: number, radius: number, startAngle: number = 0, angleOffset: number = 0) => {
+      const count = nodeIds.length;
+      if (count === 0) return;
+      const angleStep = (2 * Math.PI) / count;
+      nodeIds.forEach((id, i) => {
+        const angle = startAngle + i * angleStep + angleOffset;
+        positions[id] = {
+          x: centerX + radius * Math.cos(angle),
+          y: centerY + radius * Math.sin(angle),
+          vx: 0,
+          vy: 0,
+        };
+      });
+    };
+
+    // Place entities in rings around target
+    if (targetNode) {
+      // First ring: shared entities (devices, addresses, payments)
+      const sharedEntities = [...devices, ...addresses, ...payments].map(n => n.id);
+      placeInRing(sharedEntities, width / 2, height / 2, 140, 0, 0);
+
+      // Second ring: connected customers
+      const connectedCustomerIds = connectedCustomers.map(n => n.id);
+      placeInRing(connectedCustomerIds, width / 2, height / 2, 220, Math.PI / connectedCustomerIds.length, 0.5);
+    } else {
+      // Fallback: distribute all nodes evenly
+      const allIds = nodes.map(n => n.id);
+      placeInRing(allIds, width / 2, height / 2, Math.min(width, height) * 0.35);
+    }
+
+    // Force simulation for fine-tuning
     const simulate = () => {
       if (!ctx) return;
 
-      // Repulsion between all nodes
+      // Repulsion between all nodes (stronger for closer nodes)
       nodes.forEach((nodeA) => {
+        const posA = positions[nodeA.id];
+        if (!posA || posA.fixed) return;
+
         nodes.forEach((nodeB) => {
           if (nodeA.id === nodeB.id) return;
-          const posA = positions[nodeA.id];
           const posB = positions[nodeB.id];
+          if (!posB) return;
+
           const dx = posA.x - posB.x;
           const dy = posA.y - posB.y;
           const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          const force = 1000 / (dist * dist);
-          posA.vx += (dx / dist) * force;
-          posA.vy += (dy / dist) * force;
+
+          // Stronger repulsion for close nodes
+          if (dist < MIN_NODE_DISTANCE) {
+            const force = (MIN_NODE_DISTANCE - dist) * 0.5 + 1000 / (dist * dist);
+            const fx = (dx / dist) * force;
+            const fy = (dy / dist) * force;
+            posA.vx += fx;
+            posA.vy += fy;
+          }
         });
       });
 
-      // Attraction along edges
+      // Edge attraction (keep connected nodes at reasonable distance)
       edges.forEach((edge) => {
         const posA = positions[edge.source];
         const posB = positions[edge.target];
         if (!posA || !posB) return;
+
         const dx = posB.x - posA.x;
         const dy = posB.y - posA.y;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const force = dist * 0.01;
-        posA.vx += (dx / dist) * force;
-        posA.vy += (dy / dist) * force;
-        posB.vx -= (dx / dist) * force;
-        posB.vy -= (dy / dist) * force;
+
+        // Spring force to maintain edge length
+        const force = (dist - EDGE_LENGTH) * 0.03;
+        const fx = (dx / dist) * force;
+        const fy = (dy / dist) * force;
+
+        if (!positions[edge.source].fixed) {
+          positions[edge.source].vx += fx;
+          positions[edge.source].vy += fy;
+        }
+        if (!positions[edge.target].fixed) {
+          positions[edge.target].vx -= fx;
+          positions[edge.target].vy -= fy;
+        }
       });
 
-      // Center gravity
+      // Boundary constraints - keep nodes within canvas with margin
+      const margin = 60;
       nodes.forEach((node) => {
         const pos = positions[node.id];
-        const dx = width / 2 - pos.x;
-        const dy = height / 2 - pos.y;
-        pos.vx += dx * 0.001;
-        pos.vy += dy * 0.001;
+        if (!pos || pos.fixed) return;
+
+        if (pos.x < margin) {
+          pos.vx += (margin - pos.x) * 0.05;
+        }
+        if (pos.x > width - margin) {
+          pos.vx -= (pos.x - (width - margin)) * 0.05;
+        }
+        if (pos.y < margin) {
+          pos.vy += (margin - pos.y) * 0.05;
+        }
+        if (pos.y > height - margin) {
+          pos.vy -= (pos.y - (height - margin)) * 0.05;
+        }
       });
 
       // Update positions with damping
       nodes.forEach((node) => {
         const pos = positions[node.id];
-        pos.vx *= 0.9;
-        pos.vy *= 0.9;
+        if (!pos || pos.fixed) return;
+
+        pos.vx *= 0.85;
+        pos.vy *= 0.85;
         pos.x += pos.vx;
         pos.y += pos.vy;
       });
@@ -139,12 +239,17 @@ export function GraphViz({ data, width = 600, height = 400 }: GraphVizProps) {
       // Draw nodes
       nodes.forEach((node) => {
         const pos = positions[node.id];
+        if (!pos) return;
+
         const color = NODE_COLORS[node.type] || '#6b7280';
         const isTarget = node.is_target;
 
-        ctx.beginPath();
-        const radius = isTarget ? 18 : 14;
+        let radius = ENTITY_RADIUS;
+        if (isTarget) radius = TARGET_RADIUS;
+        else if (node.type === 'customer') radius = NEIGHBOR_RADIUS;
 
+        ctx.beginPath();
+        
         if (NODE_SHAPES[node.type] === 'circle') {
           ctx.arc(pos.x, pos.y, radius, 0, 2 * Math.PI);
         } else if (NODE_SHAPES[node.type] === 'square') {
@@ -155,6 +260,16 @@ export function GraphViz({ data, width = 600, height = 400 }: GraphVizProps) {
           ctx.lineTo(pos.x, pos.y + radius);
           ctx.lineTo(pos.x - radius, pos.y);
           ctx.closePath();
+        } else if (NODE_SHAPES[node.type] === 'hexagon') {
+          // Hexagon for payment
+          for (let i = 0; i < 6; i++) {
+            const angle = (i * Math.PI / 3) - Math.PI / 6;
+            const x = pos.x + radius * Math.cos(angle);
+            const y = pos.y + radius * Math.sin(angle);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.closePath();
         }
 
         ctx.fillStyle = color;
@@ -162,7 +277,7 @@ export function GraphViz({ data, width = 600, height = 400 }: GraphVizProps) {
 
         if (isTarget) {
           ctx.strokeStyle = '#ef4444';
-          ctx.lineWidth = 3;
+          ctx.lineWidth = 4;
           ctx.stroke();
         } else {
           ctx.strokeStyle = '#fff';
@@ -170,18 +285,46 @@ export function GraphViz({ data, width = 600, height = 400 }: GraphVizProps) {
           ctx.stroke();
         }
 
-        // Node label
+        // Node label with better positioning to avoid overlap
         ctx.fillStyle = '#1f2937';
-        ctx.font = '10px sans-serif';
+        ctx.font = '11px sans-serif';
         ctx.textAlign = 'center';
-        const label = node.label.length > 12 ? node.label.slice(0, 10) + '..' : node.label;
-        ctx.fillText(label, pos.x, pos.y + radius + 14);
+        
+        // Position label below node with more space
+        const label = node.label.length > 14 ? node.label.slice(0, 12) + '..' : node.label;
+        const labelY = pos.y + radius + 18;
+        
+        // Draw label background for readability
+        const textMetrics = ctx.measureText(label);
+        const textWidth = textMetrics.width;
+        const textHeight = 14;
+        const padding = 4;
+        
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.fillRect(pos.x - textWidth/2 - padding, labelY - textHeight - padding, textWidth + padding * 2, textHeight + padding * 2);
+        
+        ctx.fillStyle = '#1f2937';
+        ctx.fillText(label, pos.x, labelY + textHeight / 2 - 2);
       });
 
       animationRef.current = requestAnimationFrame(simulate);
     };
 
-    simulate();
+    // Run initial layout
+    const runLayout = () => {
+      let iterations = 0;
+      const maxIterations = 120;
+      
+      const step = () => {
+        if (iterations >= maxIterations) return;
+        simulate();
+        iterations++;
+        animationRef.current = requestAnimationFrame(step);
+      };
+      step();
+    };
+
+    runLayout();
 
     return () => {
       if (animationRef.current) {

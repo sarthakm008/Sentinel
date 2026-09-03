@@ -12,6 +12,7 @@ from backend.app.schemas.risk import (
     DecisionResponse,
     EvidenceItem,
     GraphResponse,
+    TimelineResponse,
 )
 from backend.app.models.base import get_db
 from backend.app.models.risk_case import RiskCase, CaseDecision, CaseEvidence
@@ -144,3 +145,22 @@ async def get_case_graph(
         raise HTTPException(status_code=404, detail=f"Could not build graph for refund {case.refund_id}")
 
     return GraphResponse(**graph)
+
+
+@router.get("/{case_id}/timeline", response_model=TimelineResponse)
+async def get_case_timeline(
+    case_id: int,
+    db: Session = Depends(get_db),
+    window_hours: int = Query(48, ge=1, le=168),
+):
+    """Get PIT-correct timeline events for a risk case's connected component."""
+    case = db.query(RiskCase).filter(RiskCase.id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
+
+    service = get_inference_service()
+    timeline = service.get_timeline_events(case.refund_id, window_hours)
+    if timeline is None:
+        raise HTTPException(status_code=404, detail=f"Could not build timeline for refund {case.refund_id}")
+
+    return TimelineResponse(**timeline)
