@@ -66,7 +66,7 @@ export function CaseDetail() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
       </div>
     );
   }
@@ -74,10 +74,10 @@ export function CaseDetail() {
   if (!caseData) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500">Case not found</p>
+        <p className="text-text-muted">Case not found</p>
         <button
           onClick={() => navigate('/cases')}
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover"
         >
           Back to Cases
         </button>
@@ -88,17 +88,17 @@ export function CaseDetail() {
   const evidenceGroups = groupEvidence(caseData.evidence);
 
   const bandColors: Record<string, string> = {
-    LOW: 'bg-green-100 text-green-800',
-    MEDIUM: 'bg-yellow-100 text-yellow-800',
-    HIGH: 'bg-orange-100 text-orange-800',
-    CRITICAL: 'bg-red-100 text-red-800',
+    LOW: 'bg-success-light text-success-foreground',
+    MEDIUM: 'bg-warning-light text-warning-foreground',
+    HIGH: 'bg-danger-light text-danger-foreground',
+    CRITICAL: 'bg-critical-light text-critical-foreground',
   };
 
   const actionColors: Record<string, string> = {
-    approve: 'bg-green-100 text-green-800',
-    verify: 'bg-blue-100 text-blue-800',
-    review: 'bg-orange-100 text-orange-800',
-    hold: 'bg-red-100 text-red-800',
+    approve: 'bg-success-light text-success-foreground',
+    verify: 'bg-primary-light text-primary',
+    review: 'bg-warning-light text-warning-foreground',
+    hold: 'bg-danger-light text-danger-foreground',
   };
 
   return (
@@ -108,22 +108,22 @@ export function CaseDetail() {
         <div>
           <button
             onClick={() => navigate('/cases')}
-            className="text-gray-500 hover:text-gray-700 mb-2"
+            className="text-text-muted hover:text-text-secondary mb-2"
           >
             ← Back to Cases
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">Case #{caseData.id}</h1>
-          <p className="text-gray-600">{caseData.refund_id} • {caseData.customer_id}</p>
+          <h1 className="text-2xl font-bold text-text-primary">Case #{caseData.id}</h1>
+          <p className="text-text-secondary">{caseData.refund_id} • {caseData.customer_id}</p>
         </div>
         <div className="flex items-center gap-4">
-          <Link to={`/cases/${caseData.id}`} className="text-sm text-blue-600 hover:text-blue-700">
+          <Link to={`/cases/${caseData.id}`} className="text-sm text-primary hover:text-primary-hover">
             Refresh
           </Link>
         </div>
       </div>
 
       {/* Risk Summary */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
+      <div className="card p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <RiskBadge
@@ -133,30 +133,30 @@ export function CaseDetail() {
             />
             <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
               <div>
-                <p className="text-gray-500">Order ID</p>
+                <p className="text-text-secondary">Order ID</p>
                 <p className="font-mono font-medium">{caseData.order_id}</p>
               </div>
               <div>
-                <p className="text-gray-500">Threshold</p>
+                <p className="text-text-secondary">Threshold</p>
                 <p className="font-mono font-medium">{caseData.risk_score > 0.41 ? '0.41 (exceeded)' : '0.41'}</p>
               </div>
               <div>
-                <p className="text-gray-500">Status</p>
-                <p className={`font-medium capitalize ${caseData.status === 'decided' ? 'text-gray-900' : 'text-blue-600'}`}>
+                <p className="text-text-secondary">Status</p>
+                <p className={`font-medium capitalize ${caseData.status === 'decided' ? 'text-text-primary' : 'text-primary'}`}>
                   {caseData.status}
                 </p>
               </div>
               <div>
-                <p className="text-gray-500">Created</p>
+                <p className="text-text-secondary">Created</p>
                 <p className="font-mono font-medium">{new Date(caseData.created_at).toLocaleString()}</p>
               </div>
             </div>
           </div>
           <div className="lg:col-span-1">
             <div className="space-y-3">
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-500">Recommended Action</p>
-                <p className={`font-semibold ${actionColors[caseData.recommended_action] || 'bg-gray-100 text-gray-800'} px-3 py-1 rounded inline-block`}>
+              <div className="p-4 bg-bg-tertiary rounded-lg">
+                <p className="text-sm text-text-secondary">Recommended Action</p>
+                <p className="font-semibold px-3 py-1 rounded inline-block badge-info">
                   {caseData.recommended_action.toUpperCase()}
                 </p>
               </div>
@@ -168,10 +168,10 @@ export function CaseDetail() {
                       onClick={() => handleDecision(action)}
                       disabled={deciding}
                       className={`w-full px-4 py-2 rounded-lg font-medium transition ${
-                        action === 'approve' ? 'bg-green-600 text-white hover:bg-green-700' :
-                        action === 'verify' ? 'bg-blue-600 text-white hover:bg-blue-700' :
-                        action === 'review' ? 'bg-orange-600 text-white hover:bg-orange-700' :
-                        'bg-red-600 text-white hover:bg-red-700'
+                        action === 'approve' ? 'btn-success' :
+                        action === 'verify' ? 'btn-primary' :
+                        action === 'review' ? 'btn-warning' :
+                        'btn-danger'
                       }`}
                     >
                       {deciding ? 'Processing...' : action.charAt(0).toUpperCase() + action.slice(1)}
@@ -180,13 +180,11 @@ export function CaseDetail() {
                 </div>
               )}
               {caseData.status === 'decided' && (
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-500">Decision Made</p>
-                  <p className={`font-semibold ${actionColors[caseData.decision!] || 'bg-gray-100 text-gray-800'} px-3 py-1 rounded inline-block`}>
-                    {caseData.decision?.toUpperCase()}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Decided: {caseData.decided_at ? new Date(caseData.decided_at).toLocaleString() : 'N/A'}
+                <div className="p-4 bg-success-light border border-success-light rounded-lg">
+                  <p className="text-sm text-success">Decision Made</p>
+                  <p className="text-success">
+                    Action: <strong>{caseData.decision?.toUpperCase()}</strong>
+                    {caseData.decided_at && ` • ${new Date(caseData.decided_at).toLocaleString()}`}
                   </p>
                 </div>
               )}
@@ -196,8 +194,8 @@ export function CaseDetail() {
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <div className="border-b border-gray-200">
+      <div className="card overflow-hidden">
+        <div className="border-b border-border">
           <nav className="flex -mb-px" aria-label="Tabs">
             {([
               { key: 'evidence', label: 'Evidence' },
@@ -210,8 +208,8 @@ export function CaseDetail() {
                 onClick={() => setActiveTab(tab.key)}
                 className={`px-6 py-3 text-sm font-medium border-b-2 transition ${
                   activeTab === tab.key
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-text-secondary hover:text-text-primary hover:border-border'
                 }`}
               >
                 {tab.label}
@@ -246,21 +244,21 @@ export function CaseDetail() {
               <GraphViz data={graphData} width={800} height={500} />
               {graphData && (
                 <div className="mt-4 grid grid-cols-4 gap-4 text-sm">
-                  <div className="bg-gray-50 p-3 rounded">
-                    <p className="text-gray-500">Connected Customers</p>
-                    <p className="font-bold text-gray-900">{graphData.stats.connected_customers}</p>
+                  <div className="bg-bg-tertiary p-3 rounded">
+                    <p className="text-text-secondary">Connected Customers</p>
+                    <p className="font-bold text-text-primary">{graphData.stats.connected_customers}</p>
                   </div>
-                  <div className="bg-gray-50 p-3 rounded">
-                    <p className="text-gray-500">Shared Devices</p>
-                    <p className="font-bold text-gray-900">{graphData.stats.shared_devices}</p>
+                  <div className="bg-bg-tertiary p-3 rounded">
+                    <p className="text-text-secondary">Shared Devices</p>
+                    <p className="font-bold text-text-primary">{graphData.stats.shared_devices}</p>
                   </div>
-                  <div className="bg-gray-50 p-3 rounded">
-                    <p className="text-gray-500">Shared Addresses</p>
-                    <p className="font-bold text-gray-900">{graphData.stats.shared_addresses}</p>
+                  <div className="bg-bg-tertiary p-3 rounded">
+                    <p className="text-text-secondary">Shared Addresses</p>
+                    <p className="font-bold text-text-primary">{graphData.stats.shared_addresses}</p>
                   </div>
-                  <div className="bg-gray-50 p-3 rounded">
-                    <p className="text-gray-500">Shared Payments</p>
-                    <p className="font-bold text-gray-900">{graphData.stats.shared_payments}</p>
+                  <div className="bg-bg-tertiary p-3 rounded">
+                    <p className="text-text-secondary">Shared Payments</p>
+                    <p className="font-bold text-text-primary">{graphData.stats.shared_payments}</p>
                   </div>
                 </div>
               )}
@@ -269,39 +267,39 @@ export function CaseDetail() {
 
           {activeTab === 'decision' && (
             <div className="space-y-4">
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <h3 className="font-semibold text-gray-900 mb-2">Risk Assessment Summary</h3>
-                <p className="text-gray-700">
+              <div className="p-4 bg-bg-tertiary rounded-lg">
+                <h3 className="font-semibold text-text-primary mb-2">Risk Assessment Summary</h3>
+                <p className="text-text-secondary">
                   This refund event was scored <strong>{caseData.risk_score.toFixed(3)}</strong>
                   by the Sentinel production model (39 features: 18 behavioral + 15 graph + 6 temporal).
                   The frozen decision threshold is <strong>0.41</strong>.
                 </p>
-<p className="text-gray-700 mt-2">
-                    Based on the ActionPolicy, this places the event in the
-                    <strong className={`${bandColors[caseData.risk_band] || ''} px-2 py-0.5 rounded inline-block`}>
-                      {caseData.risk_band}
-                    </strong>
-                    band, recommending <strong className={`${actionColors[caseData.recommended_action] || ''} px-2 py-0.5 rounded inline-block`}>
-                      {caseData.recommended_action.toUpperCase()}
-                    </strong>.
-                  </p>
+                <p className="text-text-secondary mt-2">
+                  Based on the ActionPolicy, this places the event in the
+                  <strong className={`badge-info px-2 py-0.5 rounded inline-block`}>
+                    {caseData.risk_band}
+                  </strong>
+                  band, recommending <strong className="badge-info px-2 py-0.5 rounded inline-block">
+                    {caseData.recommended_action.toUpperCase()}
+                  </strong>.
+                </p>
               </div>
 
               {caseData.status === 'decided' && (
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <h3 className="font-semibold text-green-800 mb-2">Decision Recorded</h3>
-                  <p className="text-green-700">
+                <div className="p-4 bg-success-light border border-success-light rounded-lg">
+                  <h3 className="font-semibold text-success mb-2">Decision Recorded</h3>
+                  <p className="text-success">
                     Action: <strong>{caseData.decision?.toUpperCase()}</strong>
                     {caseData.decided_at && ` • ${new Date(caseData.decided_at).toLocaleString()}`}
                   </p>
                 </div>
               )}
 
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <h3 className="font-semibold text-gray-900 mb-2">Feature Values (Production Model)</h3>
+              <div className="p-4 bg-bg-tertiary rounded-lg">
+                <h3 className="font-semibold text-text-primary mb-2">Feature Values (Production Model)</h3>
                 <details className="text-sm">
-                  <summary className="cursor-pointer text-blue-600 hover:text-blue-700">Show all 39 features</summary>
-                  <pre className="mt-2 p-3 bg-white border border-gray-200 rounded overflow-auto text-xs">
+                  <summary className="cursor-pointer text-primary hover:text-primary-hover">Show all 39 features</summary>
+                  <pre className="mt-2 p-3 bg-surface border border-border rounded overflow-auto text-xs">
                     {JSON.stringify(caseData, null, 2)}
                   </pre>
                 </details>
@@ -313,43 +311,43 @@ export function CaseDetail() {
             <div>
               {timelineData ? (
                 <div className="space-y-4">
-                  <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="bg-bg-tertiary p-4 rounded-lg">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
                       <div>
-                        <p className="text-gray-500">Target Customer</p>
+                        <p className="text-text-secondary">Target Customer</p>
                         <p className="font-mono font-medium">{timelineData.target_customer}</p>
                       </div>
                       <div>
-                        <p className="text-gray-500">Target Refund</p>
+                        <p className="text-text-secondary">Target Refund</p>
                         <p className="font-mono font-medium">{timelineData.target_refund_id}</p>
                       </div>
                       <div>
-                        <p className="text-gray-500">Refund Time</p>
+                        <p className="text-text-secondary">Refund Time</p>
                         <p className="font-mono font-medium">{new Date(timelineData.target_timestamp).toLocaleString()}</p>
                       </div>
                       <div>
-                        <p className="text-gray-500">Component Size</p>
-                        <p className="font-bold text-gray-900">{timelineData.component_size} accounts</p>
+                        <p className="text-text-secondary">Component Size</p>
+                        <p className="font-bold text-text-primary">{timelineData.component_size} accounts</p>
                       </div>
                     </div>
                   </div>
                   {timelineData.events.length === 0 ? (
-                    <div className="text-gray-500 text-center py-8">
+                    <div className="text-text-muted text-center py-8">
                       No events in the connected component within the {timelineData.window_hours}-hour window before the refund.
                     </div>
                   ) : (
-                    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="card overflow-hidden">
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
-                          <thead className="bg-gray-50 border-b border-gray-200">
+                          <thead className="bg-bg-tertiary border-b border-border">
                             <tr>
-                              <th className="px-4 py-3 text-left font-semibold text-gray-700">Time (Relative)</th>
-                              <th className="px-4 py-3 text-left font-semibold text-gray-700">Absolute Time</th>
-                              <th className="px-4 py-3 text-left font-semibold text-gray-700">Customer</th>
-                              <th className="px-4 py-3 text-left font-semibold text-gray-700">Event Type</th>
+                              <th className="px-4 py-3 text-left font-semibold text-text-secondary">Time (Relative)</th>
+                              <th className="px-4 py-3 text-left font-semibold text-text-secondary">Absolute Time</th>
+                              <th className="px-4 py-3 text-left font-semibold text-text-secondary">Customer</th>
+                              <th className="px-4 py-3 text-left font-semibold text-text-secondary">Event Type</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-gray-100">
+                          <tbody className="divide-y divide-border">
                             {timelineData.events.map((event, idx) => {
                               const eventTime = new Date(event.timestamp);
                               const targetTime = new Date(timelineData.target_timestamp);
@@ -360,11 +358,11 @@ export function CaseDetail() {
                                 ? `${diffMinutes} min after`
                                 : 'at refund time';
                               return (
-                                <tr key={idx} className={event.is_target ? 'bg-blue-50' : ''}>
-                                  <td className="px-4 py-3 font-mono text-gray-600">{relativeTime}</td>
-                                  <td className="px-4 py-3 font-mono text-gray-600">{eventTime.toLocaleString()}</td>
+                                <tr key={idx} className={event.is_target ? 'bg-primary-light' : ''}>
+                                  <td className="px-4 py-3 font-mono text-text-secondary">{relativeTime}</td>
+                                  <td className="px-4 py-3 font-mono text-text-secondary">{eventTime.toLocaleString()}</td>
                                   <td className="px-4 py-3">
-                                    <span className={event.is_target ? 'font-mono font-medium text-blue-600' : 'font-mono text-gray-900'}>
+                                    <span className={event.is_target ? 'font-mono font-medium text-primary' : 'font-mono text-text-primary'}>
                                       {event.customer_id}
                                       {event.is_target && ' (target)'}
                                     </span>
@@ -372,11 +370,11 @@ export function CaseDetail() {
                                   <td className="px-4 py-3">
                                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                                       event.event_type === 'refund'
-                                        ? 'bg-red-100 text-red-800'
-                                        : 'bg-green-100 text-green-800'
+                                        ? 'bg-danger-light text-danger-foreground'
+                                        : 'bg-success-light text-success-foreground'
                                     }`}>
-                                      {event.event_type.toUpperCase()}
-                                    </span>
+                                        {event.event_type.toUpperCase()}
+                                      </span>
                                   </td>
                                 </tr>
                               );
@@ -388,7 +386,7 @@ export function CaseDetail() {
                   )}
                 </div>
               ) : (
-                <div className="text-gray-500 text-center py-8">
+                <div className="text-text-muted text-center py-8">
                   Loading timeline...
                 </div>
               )}
@@ -398,4 +396,8 @@ export function CaseDetail() {
       </div>
     </div>
   );
+}
+
+export function formatCurrency(n: number): string {
+  return `₹${n.toLocaleString(undefined, { minimumFractionDigits: 0 })}`;
 }

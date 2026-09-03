@@ -11,38 +11,38 @@ interface RiskBadgeProps {
 
 export function RiskBadge({ score, band, action, className = '' }: RiskBadgeProps) {
   const bandStyles: Record<string, string> = {
-    LOW: 'bg-green-100 text-green-800 border-green-200',
-    MEDIUM: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    HIGH: 'bg-orange-100 text-orange-800 border-orange-200',
-    CRITICAL: 'bg-red-100 text-red-800 border-red-200',
+    LOW: 'bg-success-light text-success-foreground border-success-light',
+    MEDIUM: 'bg-warning-light text-warning-foreground border-warning-light',
+    HIGH: 'bg-danger-light text-danger-foreground border-danger-light',
+    CRITICAL: 'bg-critical-light text-critical-foreground border-critical-light',
   };
 
   const actionStyles: Record<string, string> = {
-    approve: 'bg-green-100 text-green-800',
-    verify: 'bg-blue-100 text-blue-800',
-    review: 'bg-orange-100 text-orange-800',
-    hold: 'bg-red-100 text-red-800',
+    approve: 'bg-success-light text-success-foreground',
+    verify: 'bg-primary-light text-primary',
+    review: 'bg-warning-light text-warning-foreground',
+    hold: 'bg-danger-light text-danger-foreground',
   };
 
-  const bandStyle = bandStyles[band] || 'bg-gray-100 text-gray-800';
-  const actionStyle = actionStyles[action] || 'bg-gray-100 text-gray-800';
+  const bandStyle = bandStyles[band] || 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700';
+  const actionStyle = actionStyles[action] || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
 
   return (
     <div className={`flex flex-col gap-2 ${className}`}>
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-600">Risk Score</span>
-          <div className="relative w-32 h-4 bg-gray-200 rounded-full overflow-hidden">
+          <span className="text-sm font-medium text-text-secondary">Risk Score</span>
+          <div className="relative w-32 h-4 bg-bg-tertiary rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-300 ${
-                band === 'LOW' ? 'bg-green-500' :
-                band === 'MEDIUM' ? 'bg-yellow-500' :
-                band === 'HIGH' ? 'bg-orange-500' : 'bg-red-500'
+                band === 'LOW' ? 'bg-success' :
+                band === 'MEDIUM' ? 'bg-warning' :
+                band === 'HIGH' ? 'bg-danger' : 'bg-danger'
               }`}
               style={{ width: `${score * 100}%` }}
             />
           </div>
-          <span className="text-lg font-bold text-gray-900 w-10 text-right">
+          <span className="text-lg font-bold text-text-primary w-10 text-right">
             {(score * 100).toFixed(1)}%
           </span>
         </div>
@@ -51,7 +51,7 @@ export function RiskBadge({ score, band, action, className = '' }: RiskBadgeProp
         </span>
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-gray-600">Recommended Action:</span>
+        <span className="text-sm font-medium text-text-secondary">Recommended Action:</span>
         <span className={`px-3 py-1 rounded-full text-sm font-semibold ${actionStyle}`}>
           {action.toUpperCase()}
         </span>

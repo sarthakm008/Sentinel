@@ -90,7 +90,7 @@ export function Overview() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
       </div>
     );
   }
@@ -102,19 +102,19 @@ export function Overview() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Sentinel Dashboard</h1>
-          <p className="text-gray-600">AI-Powered Coordinated Refund Abuse Detection</p>
+          <h1 className="text-2xl font-bold text-text-primary">Sentinel Dashboard</h1>
+          <p className="text-text-secondary">AI-Powered Coordinated Refund Abuse Detection</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleRunDemo}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover transition font-medium"
           >
             Run Demo Scenario
           </button>
           <button
             onClick={handleResetDemo}
-            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition font-medium"
+            className="px-4 py-2 bg-bg-tertiary text-text-primary hover:bg-bg-hover transition font-medium"
           >
             Reset Demo
           </button>
@@ -126,41 +126,41 @@ export function Overview() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <p className="text-sm text-gray-600">Total Analyzed</p>
-          <p className="text-3xl font-bold text-gray-900 mt-1">{stats.total}</p>
+        <div className="card p-6">
+          <p className="text-sm text-text-secondary">Total Analyzed</p>
+          <p className="text-3xl font-bold text-text-primary mt-1">{stats.total}</p>
         </div>
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <p className="text-sm text-gray-600">High Risk Cases</p>
-          <p className="text-3xl font-bold text-red-600 mt-1">{stats.high_risk}</p>
+        <div className="card p-6">
+          <p className="text-sm text-text-secondary">High Risk Cases</p>
+          <p className="text-3xl font-bold text-danger mt-1">{stats.high_risk}</p>
         </div>
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <p className="text-sm text-gray-600">Review Queue</p>
-          <p className="text-3xl font-bold text-orange-600 mt-1">{stats.review_queue}</p>
+        <div className="card p-6">
+          <p className="text-sm text-text-secondary">Review Queue</p>
+          <p className="text-3xl font-bold text-warning mt-1">{stats.review_queue}</p>
         </div>
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <p className="text-sm text-gray-600">Auto-Approved</p>
-          <p className="text-3xl font-bold text-green-600 mt-1">{stats.allowed}</p>
+        <div className="card p-6">
+          <p className="text-sm text-text-secondary">Auto-Approved</p>
+          <p className="text-3xl font-bold text-success mt-1">{stats.allowed}</p>
         </div>
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <p className="text-sm text-gray-600">Est. Exposure</p>
-          <p className="text-3xl font-bold text-gray-900 mt-1">{formatCurrency(stats.estimated_exposure)}</p>
+        <div className="card p-6">
+          <p className="text-sm text-text-secondary">Est. Exposure</p>
+          <p className="text-3xl font-bold text-text-primary mt-1">{formatCurrency(stats.estimated_exposure)}</p>
         </div>
       </div>
 
       {/* Production Model Summary */}
       {sentinel && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+        <div className="card p-4 border-success border">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-green-800">Production Candidate: Full Sentinel (39 features)</p>
-              <p className="text-sm text-green-700 mt-1">
+              <p className="text-sm font-semibold text-success">Production Candidate: Full Sentinel (39 features)</p>
+              <p className="text-sm text-success mt-1">
                 PR-AUC: {sentinel.pr_auc.toFixed(4)} | Recall: {sentinel.recall.toFixed(4)} | Precision: {sentinel.precision.toFixed(4)} | {formatLossVsBaseline(sentinel.loss_avoided_vs_baseline)}
               </p>
             </div>
             <Link
               to="/evaluation"
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
+              className="px-4 py-2 bg-success text-success-foreground rounded-lg hover:bg-success transition font-medium"
             >
               View Full Evaluation
             </Link>
@@ -169,14 +169,14 @@ export function Overview() {
       )}
 
       {/* Recent Cases */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Risk Cases</h2>
-          <Link to="/cases" className="text-sm text-blue-600 hover:text-blue-700">View All</Link>
+      <div className="card overflow-hidden">
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h2 className="text-lg font-semibold text-text-primary">Recent Risk Cases</h2>
+          <Link to="/cases" className="text-sm text-primary hover:text-primary-hover">View All</Link>
         </div>
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-border">
           {recentCases.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
+            <div className="p-8 text-center text-text-muted">
               No cases yet. Use the "Send Test Refund" tool above or run the demo scenario.
             </div>
           ) : (
@@ -188,4 +188,16 @@ export function Overview() {
       </div>
     </div>
   );
+}
+
+function formatCurrency(n: number): string {
+  return `₹${n.toLocaleString(undefined, { minimumFractionDigits: 0 })}`;
+}
+
+function formatLossVsBaseline(lossAvoided: number): string {
+  if (lossAvoided >= 0) {
+    return `Loss Avoided: ${formatCurrency(lossAvoided)}`;
+  } else {
+    return `Additional Loss vs Baseline: ${formatCurrency(Math.abs(lossAvoided))}`;
+  }
 }
