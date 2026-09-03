@@ -27,6 +27,9 @@ def run_evaluation(data_dir: str = "data", artifacts_dir: str = "artifacts"):
         "graph_enhanced": SentinelModelWrapper.load(os.path.join(models_dir, "graph_model.joblib")),
         "temporal_enhanced": SentinelModelWrapper.load(os.path.join(models_dir, "temporal_model.joblib")),
         "sentinel": SentinelModelWrapper.load(os.path.join(models_dir, "sentinel_model.joblib")),
+        "graph_only": SentinelModelWrapper.load(os.path.join(models_dir, "graph_only_model.joblib")),
+        "growth_only": SentinelModelWrapper.load(os.path.join(models_dir, "growth_only_model.joblib")),
+        "sentinel_interaction": SentinelModelWrapper.load(os.path.join(models_dir, "sentinel_interaction_model.joblib")),
     }
 
     evaluator = SentinelEvaluator(artifacts_dir=artifacts_dir)

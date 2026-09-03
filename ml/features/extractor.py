@@ -2,11 +2,21 @@
 
 from datetime import datetime
 import json
+import math
 import os
 from typing import Dict, List, Optional, Set, Tuple
 import networkx as nx
 import numpy as np
 import pandas as pd
+
+from ml.features.graph_features import (
+    compute_all_core_graph_features,
+    compute_component_event_growth,
+    compute_component_new_neighbors,
+    compute_graph_neighbor_sync_ratio,
+    get_connected_customers,
+    get_shared_entity_ids,
+)
 
 
 BEHAVIORAL_FEATURES = [
@@ -31,14 +41,46 @@ BEHAVIORAL_FEATURES = [
 ]
 
 GRAPH_FEATURES = [
+    # Existing (6)
     "graph_shared_device_customers",
     "graph_shared_address_customers",
     "graph_shared_payment_customers",
-    "graph_total_connected_customers",
-    "graph_two_hop_customer_count",
     "graph_component_size",
     "graph_neighbor_mean_refund_rate",
     "graph_neighbor_high_refund_count",
+    # Core Graph Phase 3 (7)
+    "graph_shared_device_rarity",
+    "graph_shared_address_rarity",
+    "graph_shared_payment_rarity",
+    "graph_neighbor_max_refund_rate",
+    "graph_neighbor_risk_mass",
+    "graph_shared_device_recency_h",
+    "graph_shared_address_recency_h",
+    # Phase 4 Growth (2)
+    "graph_component_event_growth_24h",
+    "graph_component_new_neighbors_24h",
+]
+
+# Core Graph features only (7) - for Graph-Only ablation model
+GRAPH_CORE_FEATURES = [
+    "graph_shared_device_rarity",
+    "graph_shared_address_rarity",
+    "graph_shared_payment_rarity",
+    "graph_neighbor_max_refund_rate",
+    "graph_neighbor_risk_mass",
+    "graph_shared_device_recency_h",
+    "graph_shared_address_recency_h",
+]
+
+# Phase 4 Growth features only (2) - for Growth-Only ablation model
+GRAPH_GROWTH_FEATURES = [
+    "graph_component_event_growth_24h",
+    "graph_component_new_neighbors_24h",
+]
+
+# Phase 5 Interaction features (1) - for Interaction ablation model
+GRAPH_INTERACTION_FEATURES = [
+    "graph_neighbor_synchronized_refund_ratio_1h",
 ]
 
 TEMPORAL_FEATURES = [
@@ -49,6 +91,12 @@ TEMPORAL_FEATURES = [
     "temporal_account_creation_burst_24h",
     "temporal_min_inter_event_delay_min",
 ]
+
+# Sentinel base features (39) - unchanged architecture
+SENTINEL_BASE_FEATURES = BEHAVIORAL_FEATURES + GRAPH_FEATURES + TEMPORAL_FEATURES  # 39 features
+
+# Sentinel + Interaction features (40) - for Interaction ablation model
+SENTINEL_INTERACTION_FEATURES = SENTINEL_BASE_FEATURES + GRAPH_INTERACTION_FEATURES  # 40 features
 
 ALL_FEATURES = BEHAVIORAL_FEATURES + GRAPH_FEATURES + TEMPORAL_FEATURES
 
@@ -136,6 +184,10 @@ class PointInTimeFeatureExtractor:
         
         # Component activity tracking for temporal windows: cluster_id -> list of (dt, event_type)
         comp_events = {}  # node -> list of (dt, event_type)
+        
+        # Phase 3 Core Graph: additional PIT state
+        entity_customer_degree = {}  # eid -> set of customer_ids
+        entity_customer_timestamps = {}  # eid -> {cid: last_seen_dt}
 
         event_idx = 0
         n_all_events = len(all_events)
@@ -171,6 +223,16 @@ class PointInTimeFeatureExtractor:
                     g_pit.add_edge(e_cid, ev["device_id"])
                     g_pit.add_edge(e_cid, ev["address_id"])
                     g_pit.add_edge(e_cid, ev["payment_token_id"])
+
+                    # Phase 3: Update entity degree and timestamp tracking
+                    for eid in [ev["device_id"], ev["address_id"], ev["payment_token_id"]]:
+                        if eid not in entity_customer_degree:
+                            entity_customer_degree[eid] = set()
+                        entity_customer_degree[eid].add(e_cid)
+
+                        if eid not in entity_customer_timestamps:
+                            entity_customer_timestamps[eid] = {}
+                        entity_customer_timestamps[eid][e_cid] = e_dt
 
                     # Log to component events
                     if e_cid not in comp_events:
@@ -231,12 +293,6 @@ class PointInTimeFeatureExtractor:
                 shared_pm_custs = {n for n in g_pit.neighbors(pid) if n.startswith("CUS_") and n != cid}
 
             connected_custs = shared_dev_custs.union(shared_addr_custs).union(shared_pm_custs)
-            two_hop_custs = set()
-            for n_cid in connected_custs:
-                if g_pit.has_node(n_cid):
-                    for entity_node in g_pit.neighbors(n_cid):
-                        if g_pit.has_node(entity_node):
-                            two_hop_custs.update({n for n in g_pit.neighbors(entity_node) if n.startswith("CUS_") and n != cid})
 
             # Component size
             if g_pit.has_node(cid):
@@ -256,6 +312,46 @@ class PointInTimeFeatureExtractor:
                     neighbor_high_refund_count += 1
 
             neighbor_mean_rr = float(np.mean(neighbor_refund_rates)) if neighbor_refund_rates else 0.0
+
+            # Phase 3 Core Graph: compute additional features
+            shared_dev_entities = get_shared_entity_ids(g_pit, cid, "DEV_")
+            shared_addr_entities = get_shared_entity_ids(g_pit, cid, "ADDR_")
+            shared_pm_entities = get_shared_entity_ids(g_pit, cid, "PM_")
+
+            core_graph = compute_all_core_graph_features(
+                g_pit=g_pit,
+                cid=cid,
+                t_ref=t_ref,
+                cust_orders=cust_orders,
+                cust_refunds=cust_refunds,
+                entity_customer_degree=entity_customer_degree,
+                entity_customer_timestamps=entity_customer_timestamps,
+                did=did,
+                aid=aid,
+                pid=pid,
+            )
+
+            # Phase 4 Growth: compute component growth features
+            comp_growth = compute_component_event_growth(
+                g_pit=g_pit,
+                cid=cid,
+                t_ref=t_ref,
+                cust_orders=cust_orders,
+                comp_events=comp_events,
+            )
+            comp_new_neighbors = compute_component_new_neighbors(
+                g_pit=g_pit,
+                cid=cid,
+                t_ref=t_ref,
+                comp_events=comp_events,
+            )
+
+            # Phase 5 Interaction: graph-neighborhood synchronization
+            neighbor_sync_ratio = compute_graph_neighbor_sync_ratio(
+                connected_custs=connected_custs,
+                t_ref=t_ref,
+                comp_events=comp_events,
+            )
 
             # === 3. Temporal Features ===
             # Collect events from 1-hop connected cluster in recent windows
@@ -317,15 +413,26 @@ class PointInTimeFeatureExtractor:
                 "refund_delay_hours": delay_hours,
                 "amount_ratio_vs_customer_mean": amount_ratio,
                 "category_baseline_refund_rate": cat_base_rr,
-                # Graph
+                # Graph (existing 6)
                 "graph_shared_device_customers": len(shared_dev_custs),
                 "graph_shared_address_customers": len(shared_addr_custs),
                 "graph_shared_payment_customers": len(shared_pm_custs),
-                "graph_total_connected_customers": len(connected_custs),
-                "graph_two_hop_customer_count": len(two_hop_custs),
                 "graph_component_size": comp_size,
                 "graph_neighbor_mean_refund_rate": neighbor_mean_rr,
                 "graph_neighbor_high_refund_count": neighbor_high_refund_count,
+                # Graph Core Phase 3 (7 new)
+                "graph_shared_device_rarity": core_graph["graph_shared_device_rarity"],
+                "graph_shared_address_rarity": core_graph["graph_shared_address_rarity"],
+                "graph_shared_payment_rarity": core_graph["graph_shared_payment_rarity"],
+                "graph_neighbor_max_refund_rate": core_graph["graph_neighbor_max_refund_rate"],
+                "graph_neighbor_risk_mass": core_graph["graph_neighbor_risk_mass"],
+                "graph_shared_device_recency_h": core_graph["graph_shared_device_recency_h"],
+                "graph_shared_address_recency_h": core_graph["graph_shared_address_recency_h"],
+                # Phase 4 Growth (2 new)
+                "graph_component_event_growth_24h": comp_growth,
+                "graph_component_new_neighbors_24h": comp_new_neighbors,
+                # Phase 5 Interaction (1 new)
+                "graph_neighbor_synchronized_refund_ratio_1h": neighbor_sync_ratio,
                 # Temporal
                 "temporal_cluster_events_last_15m": events_15m,
                 "temporal_cluster_events_last_1h": events_1h,

@@ -251,12 +251,18 @@ class SentinelEvaluator:
             "graph_enhanced": "#0d6efd",
             "temporal_enhanced": "#fd7e14",
             "sentinel": "#198754",
+            "graph_only": "#6f42c1",
+            "growth_only": "#20c997",
+            "sentinel_interaction": "#e83e8c",
         }
         labels_map = {
             "baseline": "Behavioral Baseline",
             "graph_enhanced": "Graph-Enhanced",
             "temporal_enhanced": "Temporal-Enhanced",
             "sentinel": "Full Sentinel",
+            "graph_only": "Graph-Only",
+            "growth_only": "Growth-Only",
+            "sentinel_interaction": "Sentinel + Interaction",
         }
 
         # Plot 1: Precision-Recall Curves
@@ -338,6 +344,8 @@ class SentinelEvaluator:
             f"| **Graph-Enhanced** | {test_results['graph_enhanced']['pr_auc']:.4f} | {test_results['graph_enhanced']['roc_auc']:.4f} | {test_results['graph_enhanced']['precision']:.4f} | {test_results['graph_enhanced']['recall']:.4f} | {test_results['graph_enhanced']['f1']:.4f} | INR {test_results['graph_enhanced']['financial_metrics']['total_expected_loss']:,.2f} | INR {test_results['graph_enhanced']['loss_avoided_vs_baseline_inr']:,.2f} |",
             f"| **Temporal-Enhanced** | {test_results['temporal_enhanced']['pr_auc']:.4f} | {test_results['temporal_enhanced']['roc_auc']:.4f} | {test_results['temporal_enhanced']['precision']:.4f} | {test_results['temporal_enhanced']['recall']:.4f} | {test_results['temporal_enhanced']['f1']:.4f} | INR {test_results['temporal_enhanced']['financial_metrics']['total_expected_loss']:,.2f} | INR {test_results['temporal_enhanced']['loss_avoided_vs_baseline_inr']:,.2f} |",
             f"| **Full Sentinel** | **{test_results['sentinel']['pr_auc']:.4f}** | **{test_results['sentinel']['roc_auc']:.4f}** | **{test_results['sentinel']['precision']:.4f}** | **{test_results['sentinel']['recall']:.4f}** | **{test_results['sentinel']['f1']:.4f}** | **INR {test_results['sentinel']['financial_metrics']['total_expected_loss']:,.2f}** | **INR {test_results['sentinel']['loss_avoided_vs_baseline_inr']:,.2f}** |",
+            f"| **Graph-Only** | {test_results['graph_only']['pr_auc']:.4f} | {test_results['graph_only']['roc_auc']:.4f} | {test_results['graph_only']['precision']:.4f} | {test_results['graph_only']['recall']:.4f} | {test_results['graph_only']['f1']:.4f} | INR {test_results['graph_only']['financial_metrics']['total_expected_loss']:,.2f} | INR {test_results['graph_only']['loss_avoided_vs_baseline_inr']:,.2f} |",
+            f"| **Sentinel + Interaction** | {test_results['sentinel_interaction']['pr_auc']:.4f} | {test_results['sentinel_interaction']['roc_auc']:.4f} | {test_results['sentinel_interaction']['precision']:.4f} | {test_results['sentinel_interaction']['recall']:.4f} | {test_results['sentinel_interaction']['f1']:.4f} | INR {test_results['sentinel_interaction']['financial_metrics']['total_expected_loss']:,.2f} | INR {test_results['sentinel_interaction']['loss_avoided_vs_baseline_inr']:,.2f} |",
             "",
             "---",
             "",
@@ -351,6 +359,8 @@ class SentinelEvaluator:
             f"| **Graph-Enhanced** | {type_f_eval['graph_enhanced']['pr_auc']:.4f} | {type_f_eval['graph_enhanced']['precision']:.4f} | {type_f_eval['graph_enhanced']['recall']:.4f} | {type_f_eval['graph_enhanced']['f1']:.4f} |",
             f"| **Temporal-Enhanced** | {type_f_eval['temporal_enhanced']['pr_auc']:.4f} | {type_f_eval['temporal_enhanced']['precision']:.4f} | {type_f_eval['temporal_enhanced']['recall']:.4f} | {type_f_eval['temporal_enhanced']['f1']:.4f} |",
             f"| **Full Sentinel** | **{type_f_eval['sentinel']['pr_auc']:.4f}** | **{type_f_eval['sentinel']['precision']:.4f}** | **{type_f_eval['sentinel']['recall']:.4f}** | **{type_f_eval['sentinel']['f1']:.4f}** |",
+            f"| **Graph-Only** | {type_f_eval['graph_only']['pr_auc']:.4f} | {type_f_eval['graph_only']['precision']:.4f} | {type_f_eval['graph_only']['recall']:.4f} | {type_f_eval['graph_only']['f1']:.4f} |",
+            f"| **Sentinel + Interaction** | {type_f_eval['sentinel_interaction']['pr_auc']:.4f} | {type_f_eval['sentinel_interaction']['precision']:.4f} | {type_f_eval['sentinel_interaction']['recall']:.4f} | {type_f_eval['sentinel_interaction']['f1']:.4f} |",
             "",
             "---",
             "",
@@ -362,6 +372,8 @@ class SentinelEvaluator:
             f"| **Graph-Enhanced** | {future_eval['graph_enhanced']['pr_auc']:.4f} | {future_eval['graph_enhanced']['precision']:.4f} | {future_eval['graph_enhanced']['recall']:.4f} | {future_eval['graph_enhanced']['f1']:.4f} |",
             f"| **Temporal-Enhanced** | {future_eval['temporal_enhanced']['pr_auc']:.4f} | {future_eval['temporal_enhanced']['precision']:.4f} | {future_eval['temporal_enhanced']['recall']:.4f} | {future_eval['temporal_enhanced']['f1']:.4f} |",
             f"| **Full Sentinel** | **{future_eval['sentinel']['pr_auc']:.4f}** | **{future_eval['sentinel']['precision']:.4f}** | **{future_eval['sentinel']['recall']:.4f}** | **{future_eval['sentinel']['f1']:.4f}** |",
+            f"| **Graph-Only** | {future_eval['graph_only']['pr_auc']:.4f} | {future_eval['graph_only']['precision']:.4f} | {future_eval['graph_only']['recall']:.4f} | {future_eval['graph_only']['f1']:.4f} |",
+            f"| **Sentinel + Interaction** | {future_eval['sentinel_interaction']['pr_auc']:.4f} | {future_eval['sentinel_interaction']['precision']:.4f} | {future_eval['sentinel_interaction']['recall']:.4f} | {future_eval['sentinel_interaction']['f1']:.4f} |",
             "",
             "---",
             "",
@@ -375,6 +387,9 @@ class SentinelEvaluator:
             f"  - Graph-Enhanced: {thresholds['graph_enhanced']:.2f}",
             f"  - Temporal-Enhanced: {thresholds['temporal_enhanced']:.2f}",
             f"  - Full Sentinel: {thresholds['sentinel']:.2f}",
+            f"  - Graph-Only: {thresholds['graph_only']:.2f}",
+            f"  - Growth-Only: {thresholds['growth_only']:.2f}",
+            f"  - Sentinel + Interaction: {thresholds['sentinel_interaction']:.2f}",
             ""
         ]
 
