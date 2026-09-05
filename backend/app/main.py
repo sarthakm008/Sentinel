@@ -1,5 +1,14 @@
 """Sentinel Backend — FastAPI Application."""
 
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file before any other imports
+# This must happen before any modules that read env vars at import time
+# Only load if DATABASE_URL is not already set (preserves test env var precedence)
+if "DATABASE_URL" not in os.environ:
+    load_dotenv()
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI

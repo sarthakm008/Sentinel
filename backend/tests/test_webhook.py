@@ -6,36 +6,11 @@ import json
 import pytest
 from datetime import datetime
 from unittest.mock import patch, MagicMock
-from fastapi.testclient import TestClient
 
-from backend.app.main import app
-from backend.app.models.base import get_db, SessionLocal, engine
 from backend.app.models.risk_case import RefundEventQueue, RiskCase
 from backend.app.models.webhook import ProcessedWebhookEvent
-from backend.app.models.base import Base
 
-client = TestClient(app)
-
-
-@pytest.fixture
-def db_session():
-    """Create a fresh database session for each test."""
-    Base.metadata.create_all(bind=engine)
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-        Base.metadata.drop_all(bind=engine)
-
-
-@pytest.fixture
-def test_secret():
-    """Test webhook secret."""
-    secret = "test_webhook_secret_12345678901234567890123456789012"
-    import os
-    os.environ["RAZORPAY_WEBHOOK_SECRET"] = secret
-    return secret
+# client fixture is provided by conftest.py
 
 
 @pytest.fixture
@@ -172,7 +147,7 @@ class TestWebhookVerifier:
 class TestWebhookEndpoint:
     """Tests for the Razorpay webhook endpoint."""
 
-    def test_missing_signature_header(self, sample_refund_created_payload):
+    def test_missing_signature_header(self, client, sample_refund_created_payload):
         """Test 401 when signature header is missing."""
         response = client.post(
             "/api/webhooks/razorpay",
@@ -181,7 +156,7 @@ class TestWebhookEndpoint:
         assert response.status_code == 401
         assert "Missing signature" in response.json()["detail"]
 
-    def test_invalid_signature(self, test_secret, sample_refund_created_payload):
+    def test_invalid_signature(self, client, test_secret, sample_refund_created_payload):
         """Test 401 when signature is invalid."""
         raw_body = json.dumps(sample_refund_created_payload).encode('utf-8')
         invalid_sig = "invalid_signature"
@@ -198,7 +173,7 @@ class TestWebhookEndpoint:
         assert response.status_code == 401
         assert "Invalid signature" in response.json()["detail"]
 
-    def test_valid_signature_missing_event_id(self, test_secret, sample_refund_created_payload):
+    def test_valid_signature_missing_event_id(self, client, test_secret, sample_refund_created_payload):
         """Test 400 when event ID header is missing."""
         raw_body = json.dumps(sample_refund_created_payload).encode('utf-8')
         signature = hmac.new(
@@ -218,7 +193,7 @@ class TestWebhookEndpoint:
         assert response.status_code == 400
         assert "Missing event ID" in response.json()["detail"]
 
-    def test_malformed_json(self, test_secret):
+    def test_malformed_json(self, client, test_secret):
         """Test 400 for malformed JSON."""
         raw_body = b'{invalid json}'
         signature = hmac.new(
@@ -239,7 +214,7 @@ class TestWebhookEndpoint:
         assert response.status_code == 400
         assert "Invalid JSON" in response.json()["detail"]
 
-    def test_invalid_payload_structure(self, test_secret, db_session):
+    def test_invalid_payload_structure(self, client, test_secret, db_session):
         """Test that unknown event types are acknowledged (200) with minimal validation."""
         raw_body = json.dumps({"invalid": "structure"}).encode('utf-8')
         signature = hmac.new(
@@ -261,7 +236,7 @@ class TestWebhookEndpoint:
         # to prevent Razorpay retries
         assert response.status_code == 200
 
-    def test_valid_refund_created_signature(self, test_secret, sample_refund_created_payload, db_session):
+    def test_valid_refund_created_signature(self, client, test_secret, sample_refund_created_payload, db_session):
         """Test valid refund.created with correct signature."""
         raw_body = json.dumps(sample_refund_created_payload).encode('utf-8')
         signature = hmac.new(
@@ -289,7 +264,7 @@ class TestWebhookEndpoint:
         assert queue_entry.source == "webhook"
         assert queue_entry.webhook_event_id == "evt_test_123"
 
-    def test_duplicate_event_id_idempotency(self, test_secret, sample_refund_created_payload, db_session):
+    def test_duplicate_event_id_idempotency(self, client, test_secret, sample_refund_created_payload, db_session):
         """Test idempotent handling of duplicate event IDs."""
         raw_body = json.dumps(sample_refund_created_payload).encode('utf-8')
         signature = hmac.new(
@@ -325,7 +300,7 @@ class TestWebhookEndpoint:
         ).first()
         assert processed is not None
 
-    def test_duplicate_event_id_race_condition(self, test_secret, sample_refund_created_payload, db_session):
+    def test_duplicate_event_id_race_condition(self, client, test_secret, sample_refund_created_payload, db_session):
         """Test idempotency under concurrent duplicate requests."""
         import threading
         import time
@@ -366,7 +341,7 @@ class TestWebhookEndpoint:
         ).all()
         assert len(queue_entries) == 1
 
-    def test_duplicate_refund_id_different_event_id(self, test_secret, sample_refund_created_payload, db_session):
+    def test_duplicate_refund_id_different_event_id(self, client, test_secret, sample_refund_created_payload, db_session):
         """Test duplicate refund_id with different event IDs."""
         raw_body = json.dumps(sample_refund_created_payload).encode('utf-8')
         signature = hmac.new(
@@ -401,7 +376,7 @@ class TestWebhookEndpoint:
         ).all()
         assert len(queue_entries) == 1
 
-    def test_unsupported_event_type(self, test_secret, db_session):
+    def test_unsupported_event_type(self, client, test_secret, db_session):
         """Test unsupported event type returns 200 but doesn't enqueue."""
         payload = {
             "entity": "event",
@@ -434,7 +409,7 @@ class TestWebhookEndpoint:
         queue_entries = db_session.query(RefundEventQueue).all()
         assert len(queue_entries) == 0
 
-    def test_missing_refund_entity(self, test_secret, db_session):
+    def test_missing_refund_entity(self, client, test_secret, db_session):
         """Test 400 when refund entity is missing."""
         payload = {
             "entity": "event",
@@ -473,7 +448,7 @@ class TestWebhookEndpoint:
             )
         assert response.status_code == 400
 
-    def test_missing_required_refund_fields(self, test_secret, db_session):
+    def test_missing_required_refund_fields(self, client, test_secret, db_session):
         """Test 400 when required refund fields are missing."""
         payload = {
             "entity": "event",
@@ -520,7 +495,7 @@ class TestWebhookEndpoint:
             )
         assert response.status_code == 400
 
-    def test_paise_to_inr_conversion(self, test_secret, sample_refund_created_payload, db_session):
+    def test_paise_to_inr_conversion(self, client, test_secret, sample_refund_created_payload, db_session):
         """Test correct paise to INR conversion."""
         raw_body = json.dumps(sample_refund_created_payload).encode('utf-8')
         signature = hmac.new(
@@ -550,7 +525,7 @@ class TestWebhookEndpoint:
         # 500000 paise = 5000.00 INR
         assert queue_entry.order_amount_inr == 5000.0
 
-    def test_timestamp_conversion(self, test_secret, sample_refund_created_payload, db_session):
+    def test_timestamp_conversion(self, client, test_secret, sample_refund_created_payload, db_session):
         """Test correct Unix timestamp to datetime conversion."""
         raw_body = json.dumps(sample_refund_created_payload).encode('utf-8')
         signature = hmac.new(
@@ -580,7 +555,7 @@ class TestWebhookEndpoint:
         # payment created_at = 1597226379 -> 2020-08-12 08:39:39 UTC
         assert queue_entry.order_time == datetime.utcfromtimestamp(1597226379)
 
-    def test_refund_processed_acknowledged_only(self, test_secret, sample_refund_created_payload, db_session):
+    def test_refund_processed_acknowledged_only(self, client, test_secret, sample_refund_created_payload, db_session):
         """Test refund.processed is acknowledged but not scored."""
         payload = sample_refund_created_payload.copy()
         payload["event"] = "refund.processed"
@@ -649,7 +624,7 @@ class TestWebhookSignatureVerification:
 class TestWebhookMerchantContext:
     """Tests for merchant context resolution and enrichment handling."""
 
-    def test_missing_merchant_context_no_scoring_enqueue(self, test_secret, db_session):
+    def test_missing_merchant_context_no_scoring_enqueue(self, client, test_secret, db_session):
         """Test that webhooks with missing merchant context are acknowledged but not enqueued for scoring."""
         # Create a payload with a refund/payment that won't resolve in our test data
         # Include all required fields for minimal validation (RazorpayWebhookEventMinimal)
@@ -751,7 +726,7 @@ class TestWebhookMerchantContext:
 class TestWebhookCurrencyValidation:
     """Tests for currency validation."""
 
-    def test_inr_currency_accepted(self, test_secret, sample_refund_created_payload, db_session):
+    def test_inr_currency_accepted(self, client, test_secret, sample_refund_created_payload, db_session):
         """Test that INR currency is accepted."""
         raw_body = json.dumps(sample_refund_created_payload).encode('utf-8')
         signature = hmac.new(
@@ -778,7 +753,7 @@ class TestWebhookCurrencyValidation:
         assert queue_entry is not None
         assert queue_entry.amount_inr == 500.0
 
-    def test_non_inr_currency_rejected(self, test_secret, sample_refund_created_payload, db_session):
+    def test_non_inr_currency_rejected(self, client, test_secret, sample_refund_created_payload, db_session):
         """Test that non-INR currency is rejected with 400."""
         payload = sample_refund_created_payload.copy()
         payload["payload"]["refund"]["currency"] = "USD"
@@ -803,7 +778,7 @@ class TestWebhookCurrencyValidation:
         assert "Unsupported currency" in response.json()["detail"]
         assert "USD" in response.json()["detail"]
 
-    def test_missing_currency_rejected(self, test_secret, db_session):
+    def test_missing_currency_rejected(self, client, test_secret, db_session):
         """Test that missing currency is rejected."""
         payload = {
             "entity": "event",
@@ -856,7 +831,7 @@ class TestWebhookCurrencyValidation:
 class TestWebhookIntegration:
     """End-to-end integration tests."""
 
-    def test_webhook_to_queue_to_sentinel_to_riskcase(self, test_secret, sample_refund_created_payload, db_session):
+    def test_webhook_to_queue_to_sentinel_to_riskcase(self, client, test_secret, sample_refund_created_payload, db_session):
         """Test full flow: webhook → queue → QueueMonitor → Sentinel → RiskCase.
         
         Note: We can't easily test the full async QueueMonitor in unit tests,

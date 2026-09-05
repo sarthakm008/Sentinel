@@ -1,7 +1,7 @@
 // InjectRefundModal Component
 
 import { useState, useCallback, FormEvent } from 'react';
-import { integrationApi, eventsApi } from '../api';
+import { integrationApi, eventsApi, casesApi } from '../api';
 import { RefundEventRequest, RefundEventResponse } from '../types';
 import { StatusBadge } from './StatusBadge';
 
@@ -100,14 +100,14 @@ export function InjectRefundModal({ isOpen, onClose, onCaseCreated }: InjectRefu
         attempts++;
       }
 
-      const casesRes = await fetch('/api/cases').then((r) => r.json());
+      const casesRes = await casesApi.list();
       const newCase = casesRes.cases.find((c: any) => c.refund_id === formData.refund_id);
 
       if (newCase) {
         await new Promise((r) => setTimeout(r, 400));
         const scoreResult = await eventsApi.getRefundStatus(formData.refund_id);
         if (scoreResult.processed) {
-          const caseDetail = await fetch(`/api/cases/${newCase.id}`).then((r) => r.json());
+          const caseDetail = await casesApi.get(newCase.id);
           setTestResult({
             response: { ...caseDetail, case_id: newCase.id } as any,
             request: formData

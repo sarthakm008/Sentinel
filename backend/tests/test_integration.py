@@ -1,20 +1,17 @@
 """Integration tests for Sentinel API endpoints."""
 
 import pytest
-from fastapi.testclient import TestClient
 
-from backend.app.main import app
-
-client = TestClient(app)
+# Use client fixture from conftest
 
 
-def test_health_endpoint():
+def test_health_endpoint(client):
     response = client.get("/api/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
 
-def test_risk_score_endpoint():
+def test_risk_score_endpoint(client):
     """Test scoring a refund event."""
     response = client.post("/api/risk/score", json={"refund_id": "REF_0000001"})
     assert response.status_code == 200
@@ -29,13 +26,13 @@ def test_risk_score_endpoint():
     assert data["recommended_action"] in ["approve", "verify", "review", "hold"]
 
 
-def test_risk_score_invalid_refund():
+def test_risk_score_invalid_refund(client):
     """Test scoring a non-existent refund."""
     response = client.post("/api/risk/score", json={"refund_id": "REF_INVALID"})
     assert response.status_code == 404
 
 
-def test_cases_list_endpoint():
+def test_cases_list_endpoint(client):
     """Test listing cases."""
     # First create a case
     client.post("/api/risk/score", json={"refund_id": "REF_0000001"})
@@ -48,7 +45,7 @@ def test_cases_list_endpoint():
     assert data["total"] >= 1
 
 
-def test_cases_list_with_filters():
+def test_cases_list_with_filters(client):
     """Test listing cases with filters."""
     response = client.get("/api/cases?band=LOW")
     assert response.status_code == 200
@@ -57,7 +54,7 @@ def test_cases_list_with_filters():
         assert case["risk_band"] == "LOW"
 
 
-def test_case_detail_endpoint():
+def test_case_detail_endpoint(client):
     """Test getting a specific case."""
     # Create a case first
     score_response = client.post("/api/risk/score", json={"refund_id": "REF_0000001"})
@@ -70,7 +67,7 @@ def test_case_detail_endpoint():
     assert "evidence" in data
 
 
-def test_case_decision_endpoint():
+def test_case_decision_endpoint(client):
     """Test recording a decision on a case."""
     # Create a case first
     score_response = client.post("/api/risk/score", json={"refund_id": "REF_0000001"})
@@ -90,7 +87,7 @@ def test_case_decision_endpoint():
     assert case_response.json()["decision"] == "approve"
 
 
-def test_case_decision_invalid():
+def test_case_decision_invalid(client):
     """Test recording an invalid decision."""
     score_response = client.post("/api/risk/score", json={"refund_id": "REF_0000001"})
     case_id = score_response.json()["case_id"]
@@ -99,7 +96,7 @@ def test_case_decision_invalid():
     assert response.status_code == 400
 
 
-def test_evaluation_endpoint():
+def test_evaluation_endpoint(client):
     """Test evaluation metrics endpoint."""
     response = client.get("/api/evaluation")
     assert response.status_code == 200
@@ -121,7 +118,7 @@ def test_evaluation_endpoint():
     assert phase5["decision"] == "STOP"
 
 
-def test_demo_scenario_endpoint():
+def test_demo_scenario_endpoint(client):
     """Test demo scenario configuration."""
     response = client.get("/api/demo/scenario")
     assert response.status_code == 200
@@ -130,7 +127,7 @@ def test_demo_scenario_endpoint():
     assert len(data["refund_ids"]) == 5
 
 
-def test_demo_reset_endpoint():
+def test_demo_reset_endpoint(client):
     """Test demo reset."""
     # Create some cases first
     client.post("/api/risk/score", json={"refund_id": "REF_0000001"})
@@ -145,7 +142,7 @@ def test_demo_reset_endpoint():
     assert cases_response.json()["total"] == 0
 
 
-def test_demo_run_endpoint():
+def test_demo_run_endpoint(client):
     """Test running the demo scenario."""
     # Reset first
     client.post("/api/demo/reset")

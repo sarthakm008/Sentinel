@@ -5,6 +5,13 @@ It reads configuration from environment variables and starts the FastAPI applica
 """
 
 import os
+
+from dotenv import load_dotenv
+
+# Load environment variables from .env file before any other imports
+# This must happen before any modules that read env vars at import time
+load_dotenv()
+
 import uvicorn
 
 from backend.app.main import app
