@@ -1,5 +1,7 @@
 """Sentinel Backend — FastAPI Application."""
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -27,10 +29,37 @@ def _get_cors_origins() -> list:
     return ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"]
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Create tables on startup
+    RiskCaseBase.metadata.create_all(bind=engine)
+    WebhookBase.metadata.create_all(bind=engine)
+    # Pre-warm ML service
+    from backend.app.services.ml_service import get_inference_service
+    get_inference_service()
+    # Start queue monitor
+    from backend.app.services.queue_monitor import start_queue_monitor
+    await start_queue_monitor()
+    yield
+    # Shutdown
+    from backend.app.services.queue_monitor import stop_queue_monitor
+    await stop_queue_monitor()
+
+
+def _get_cors_origins() -> list:
+    """Get CORS origins from environment variable or use defaults for local development."""
+    frontend_origin = os.getenv("FRONTEND_ORIGIN")
+    if frontend_origin:
+        return [frontend_origin]
+    # Default to localhost for development
+    return ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"]
+
+
 app = FastAPI(
     title="Sentinel",
     description="AI-Powered Coordinated Refund Abuse Detection",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 # CORS — allow frontend dev server and configured production origin
@@ -41,23 +70,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Create tables on startup
-@app.on_event("startup")
-async def startup_event():
-    RiskCaseBase.metadata.create_all(bind=engine)
-    WebhookBase.metadata.create_all(bind=engine)
-    # Pre-warm ML service
-    from backend.app.services.ml_service import get_inference_service
-    get_inference_service()
-    # Start queue monitor
-    from backend.app.services.queue_monitor import start_queue_monitor
-    await start_queue_monitor()
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    from backend.app.services.queue_monitor import stop_queue_monitor
-    await stop_queue_monitor()
 
 # Routers
 app.include_router(health_router, prefix="/api")

@@ -56,22 +56,23 @@ Add these environment variables in Render dashboard:
 
 | Variable | Value | Notes |
 |----------|-------|-------|
-| `DATABASE_URL` | `sqlite:///./data/sentinel.db` | SQLite file in persistent disk |
+| `DATABASE_URL` | `postgresql+psycopg://postgres:password@host:5432/sentinel` | PostgreSQL connection string |
 | `RANDOM_SEED` | `42` | ML reproducibility |
 | `DATA_DIR` | `./data` | Raw data directory |
 | `ARTIFACTS_DIR` | `./artifacts` | Model artifacts directory |
 | `FRONTEND_ORIGIN` | `https://your-frontend.vercel.app` | **Set after Step 3** |
 | `PYTHON_VERSION` | `3.11.0` | Optional, but recommended |
 
-### 1.4 Add Persistent Disk (Required for SQLite)
+### 1.4 PostgreSQL Database Provisioning
 
-1. In Render service settings, go to **Disks**
-2. Click **Add Disk**
-   - **Name**: `sentinel-data`
-   - **Mount Path**: `/app/data` (or just `/app` if using root)
-   - **Size**: 1 GB (minimum for free tier)
+**Provision a PostgreSQL database** before deploying the backend:
 
-**Important**: The SQLite database is stored on this disk. On Render Free tier, the disk persists across deploys but **not** across service restarts due to inactivity. Treat SQLite state as ephemeral demo/runtime data.
+- Use a managed PostgreSQL service (Render PostgreSQL, Supabase, Neon, AWS RDS, etc.)
+- Create a database named `sentinel`
+- Note the connection string: `postgresql+psycopg://USER:PASSWORD@HOST:5432/sentinel`
+- Set this as `DATABASE_URL` in Render environment variables
+
+**Note**: No persistent disk is required for PostgreSQL - the database is hosted externally.
 
 ### 1.5 Deploy Backend
 
@@ -172,7 +173,7 @@ Click **Deploy**. Vercel will:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `DATABASE_URL` | Yes | `sqlite:///./data/sentinel.db` | SQLite path |
+| `DATABASE_URL` | Yes | - | PostgreSQL connection string (e.g., `postgresql+psycopg://user:pass@host:5432/sentinel`) |
 | `PORT` | Auto | Set by Render | Port to bind (provided by Render) |
 | `RANDOM_SEED` | No | `42` | ML reproducibility |
 | `DATA_DIR` | No | `./data` | Raw data directory |
@@ -269,17 +270,32 @@ cd frontend && npm run dev
 
 ---
 
+---
+
 ## Important Notes
 
-### SQLite on Render Free Tier
+### Database Support
 
-**⚠️ IMPORTANT**: Render Free tier provides an **ephemeral filesystem**. 
-- The SQLite database (`sentinel.db`) is stored on the persistent disk
-- **However**: The disk is only attached when the service is running
-- After ~15 minutes of inactivity, Render spins down the service
-- On restart, the disk is re-attached but **SQLite state persists** (it's on the disk)
-- **Exception**: If Render migrates your service to a new host, the disk may be recreated
-- **Treat all SQLite state as ephemeral demo/runtime state** — cases, queue, decisions may reset
+**Production**: PostgreSQL is the required production database. SQLite is only supported for local development.
+
+**Local Development (SQLite)**:
+```bash
+DATABASE_URL=sqlite:///./sentinel.db
+```
+
+**Production (PostgreSQL)**:
+```bash
+DATABASE_URL=postgresql+psycopg://user:password@host:5432/sentinel
+```
+
+The application automatically detects the database type from `DATABASE_URL` and configures appropriately.
+
+### PostgreSQL on Render
+
+When deploying to Render with PostgreSQL:
+- Provision a managed PostgreSQL database (Render PostgreSQL, Supabase, Neon, AWS RDS, etc.)
+- Set `DATABASE_URL` to the PostgreSQL connection string
+- No persistent disk required for the database
 
 ### Bundled Assets
 
@@ -363,7 +379,6 @@ npm run build
 | **Start Command** | `python -m backend.run` |
 | **Root Directory** | Repository root |
 | **Python Version** | 3.11 (recommended) |
-| **Disk** | 1 GB, mount at `/app/data` |
 | **Health Check** | `GET /api/health` |
 | **Auto-Deploy** | Yes (on push to main) |
 
