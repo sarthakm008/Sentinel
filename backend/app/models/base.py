@@ -19,7 +19,24 @@ if "DATABASE_URL" not in os.environ:
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
+
+def _normalize_database_url(url: str) -> str:
+    """Normalize DATABASE_URL to use psycopg v3 driver explicitly.
+
+    - postgresql://... -> postgresql+psycopg://...
+    - postgres://... -> postgresql+psycopg://...
+    - postgresql+psycopg://... -> unchanged
+    - sqlite://... -> unchanged
+    """
+    if url.startswith("postgres://"):
+        return "postgresql+psycopg://" + url[len("postgres://"):]
+    if url.startswith("postgresql://"):
+        return "postgresql+psycopg://" + url[len("postgresql://"):]
+    return url
+
+
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./sentinel.db")
+DATABASE_URL = _normalize_database_url(DATABASE_URL)
 
 # SQLite needs check_same_thread=False for FastAPI async usage
 # PostgreSQL doesn't need this
