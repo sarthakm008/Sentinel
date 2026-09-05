@@ -67,6 +67,11 @@ class SentinelInferenceService:
         self.data_dir = data_dir or os.path.join(project_root, "data")
         self.raw_dir = os.path.join(self.data_dir, "raw")
 
+        # Lightweight mode for memory-constrained environments (e.g., Render Free 512MB)
+        # Skips loading full raw data and building PIT state at startup.
+        # Data is loaded lazily on first scoring request.
+        self._lightweight = os.getenv("LIGHTWEIGHT_MODE", "false").lower() == "true"
+
         self.model: Optional[SentinelModelWrapper] = None
         self.threshold: float = 0.41
         self.action_policy: Optional[ActionPolicy] = None
@@ -97,10 +102,22 @@ class SentinelInferenceService:
     def initialize(self) -> None:
         """Load model, threshold, and raw data. Build PIT state up to max timestamp."""
         self._load_model_and_threshold()
-        self._load_raw_data()
-        self._precompute_lookups()
-        self._build_all_events()
-        self._build_pit_state_up_to_max()
+        if not self._lightweight:
+            self._load_raw_data()
+            self._precompute_lookups()
+            self._build_all_events()
+            self._build_pit_state_up_to_max()
+        else:
+            print("Running in LIGHTWEIGHT_MODE: deferring raw data/PIT loading to first scoring request")
+
+    def _ensure_data_loaded(self) -> None:
+        """Ensure raw data and PIT state are loaded (lazy initialization for lightweight mode)."""
+        if self._lightweight and not self._raw_data_loaded:
+            print("LIGHTWEIGHT_MODE: loading raw data and building PIT state on first request...")
+            self._load_raw_data()
+            self._precompute_lookups()
+            self._build_all_events()
+            self._build_pit_state_up_to_max()
 
     def _load_model_and_threshold(self) -> None:
         """Load the production model and frozen threshold."""
@@ -222,6 +239,7 @@ class SentinelInferenceService:
 
     def get_refund_event(self, refund_id: str) -> Optional[Dict]:
         """Get refund event details by refund_id."""
+        self._ensure_data_loaded()
         refund_row = self.refunds_df[self.refunds_df["refund_id"] == refund_id]
         if refund_row.empty:
             return None
@@ -260,6 +278,7 @@ class SentinelInferenceService:
         This replicates the feature extraction logic from PointInTimeFeatureExtractor
         but for a single event, using the pre-built PIT state.
         """
+        self._ensure_data_loaded()
         ref_event = self.get_refund_event(refund_id)
         if ref_event is None:
             return None
@@ -627,6 +646,7 @@ class SentinelInferenceService:
 
     def get_graph_subgraph(self, refund_id: str) -> Optional[Dict[str, Any]]:
         """Get PIT-correct network subgraph for a refund event."""
+        self._ensure_data_loaded()
         ref_event = self.get_refund_event(refund_id)
         if ref_event is None:
             return None
@@ -729,6 +749,7 @@ class SentinelInferenceService:
         window_hours before the refund timestamp. Only events strictly before
         t_ref are included (PIT-correct).
         """
+        self._ensure_data_loaded()
         ref_event = self.get_refund_event(refund_id)
         if ref_event is None:
             return None
