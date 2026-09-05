@@ -43,9 +43,13 @@ async def lifespan(app: FastAPI):
     # Create tables on startup
     RiskCaseBase.metadata.create_all(bind=engine)
     WebhookBase.metadata.create_all(bind=engine)
-    # Pre-warm ML service
-    from backend.app.services.ml_service import get_inference_service
-    get_inference_service()
+    
+    # Only initialize ML service if not in LIGHTWEIGHT_MODE
+    if os.getenv("LIGHTWEIGHT_MODE", "false").lower() != "true":
+        # Pre-warm ML service
+        from backend.app.services.ml_service import get_inference_service
+        get_inference_service()
+    
     # Start queue monitor
     from backend.app.services.queue_monitor import start_queue_monitor
     await start_queue_monitor()
