@@ -1,12 +1,19 @@
-// Case Detail page
+// CaseDetail Page - Analyst Workstation
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { casesApi, riskApi } from '../api';
 import { CaseResponse, GraphResponse, EvidenceItem, TimelineResponse, TimelineEvent } from '../types';
-import { RiskBadge } from '../components/RiskBadge';
+import { ScoreDisplay } from '../components/ScoreDisplay';
+import { StatusBadge } from '../components/StatusBadge';
 import { EvidenceCard } from '../components/EvidenceCard';
 import { GraphViz } from '../components/GraphViz';
+import { MetricRowWithDescription } from '../components/MetricRow';
+import { CompactTable } from '../components/CompactTable';
+import { formatTimestamp } from '../utils/format';
+import { WorkstationPane } from '../components/WorkstationPane';
+import { Divider } from '../components/Divider';
+import { Callout } from '../components/Callout';
 
 export function CaseDetail() {
   const { id } = useParams<{ id: string }>();
@@ -15,22 +22,17 @@ export function CaseDetail() {
   const [graphData, setGraphData] = useState<GraphResponse | null>(null);
   const [timelineData, setTimelineData] = useState<TimelineResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [deciding, setDeciding] = useState(false);
-  const [activeTab, setActiveTab] = useState<'evidence' | 'graph' | 'decision' | 'timeline'>('evidence');
+  const [deciding, setDeciding] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'evidence' | 'decision' | 'timeline'>('evidence');
 
-  useEffect(() => {
-    if (id) {
-      loadCase();
-    }
-  }, [id]);
-
-  const loadCase = async () => {
+  const loadCase = useCallback(async () => {
+    if (!id) return;
     try {
       setLoading(true);
       const [caseRes, graphRes, timelineRes] = await Promise.all([
-        casesApi.get(parseInt(id!)),
-        riskApi.getGraph(parseInt(id!)),
-        casesApi.getTimeline(parseInt(id!)),
+        casesApi.get(parseInt(id, 10)),
+        riskApi.getGraph(parseInt(id, 10)),
+        casesApi.getTimeline(parseInt(id, 10)),
       ]);
       setCaseData(caseRes);
       setGraphData(graphRes);
@@ -40,364 +42,355 @@ export function CaseDetail() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    loadCase();
+  }, [loadCase]);
 
   const handleDecision = async (decision: 'approve' | 'verify' | 'review' | 'hold') => {
     if (!caseData) return;
     try {
-      setDeciding(true);
+      setDeciding(decision);
       await casesApi.decide(caseData.id, decision);
       await loadCase();
     } catch (err) {
       console.error('Decision failed:', err);
     } finally {
-      setDeciding(false);
+      setDeciding(null);
     }
   };
 
   const groupEvidence = (evidence: EvidenceItem[]) => {
     return {
-      behavioral: evidence.filter(e => e.category === 'behavioral'),
-      graph: evidence.filter(e => e.category === 'graph'),
-      temporal: evidence.filter(e => e.category === 'temporal'),
+      behavioral: evidence.filter((e) => e.category === 'behavioral'),
+      graph: evidence.filter((e) => e.category === 'graph'),
+      temporal: evidence.filter((e) => e.category === 'temporal'),
     };
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px' }}>
+        <div className="spinner-lg" />
       </div>
     );
   }
 
   if (!caseData) {
     return (
-      <div className="text-center py-12">
-        <p className="text-text-muted">Case not found</p>
-        <button
-          onClick={() => navigate('/cases')}
-          className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover"
-        >
-          Back to Cases
-        </button>
+      <div style={{ textAlign: 'center', padding: '48px', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)' }}>
+        <p style={{ color: 'var(--color-text-muted)', marginBottom: '16px' }}>Case not found</p>
+        <Link to="/cases" className="btn btn-primary">Back to Cases</Link>
       </div>
     );
   }
 
   const evidenceGroups = groupEvidence(caseData.evidence);
-
-  const bandColors: Record<string, string> = {
-    LOW: 'bg-success-light text-success-foreground',
-    MEDIUM: 'bg-warning-light text-warning-foreground',
-    HIGH: 'bg-danger-light text-danger-foreground',
-    CRITICAL: 'bg-critical-light text-critical-foreground',
-  };
-
-  const actionColors: Record<string, string> = {
-    approve: 'bg-success-light text-success-foreground',
-    verify: 'bg-primary-light text-primary',
-    review: 'bg-warning-light text-warning-foreground',
-    hold: 'bg-danger-light text-danger-foreground',
-  };
+  const exceeded = caseData.risk_score > 0.41;
 
   return (
-    <div className="space-y-6">
+    <div>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '16px',
+        marginBottom: 'var(--space-loose)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <button
             onClick={() => navigate('/cases')}
-            className="text-text-muted hover:text-text-secondary mb-2"
+            className="btn btn-ghost btn-sm"
+            aria-label="Back to Cases"
           >
-            ← Back to Cases
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
           </button>
-          <h1 className="text-2xl font-bold text-text-primary">Case #{caseData.id}</h1>
-          <p className="text-text-secondary">{caseData.refund_id} • {caseData.customer_id}</p>
+          <div>
+            <h1 style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--font-semibold)', color: 'var(--color-text-primary)' }}>Case #{caseData.id}</h1>
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)' }}>{caseData.refund_id} · {caseData.customer_id}</p>
+          </div>
         </div>
-        <div className="flex items-center gap-4">
-          <Link to={`/cases/${caseData.id}`} className="text-sm text-primary hover:text-primary-hover">
-            Refresh
-          </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button onClick={loadCase} className="btn btn-secondary btn-sm">Refresh</button>
         </div>
       </div>
 
-      {/* Risk Summary */}
-      <div className="card p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <RiskBadge
-              score={caseData.risk_score}
-              band={caseData.risk_band}
-              action={caseData.recommended_action}
-            />
-            <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-text-secondary">Order ID</p>
-                <p className="font-mono font-medium">{caseData.order_id}</p>
-              </div>
-              <div>
-                <p className="text-text-secondary">Threshold</p>
-                <p className="font-mono font-medium">{caseData.risk_score > 0.41 ? '0.41 (exceeded)' : '0.41'}</p>
-              </div>
-              <div>
-                <p className="text-text-secondary">Status</p>
-                <p className={`font-medium capitalize ${caseData.status === 'decided' ? 'text-text-primary' : 'text-primary'}`}>
-                  {caseData.status}
-                </p>
-              </div>
-              <div>
-                <p className="text-text-secondary">Created</p>
-                <p className="font-mono font-medium">{new Date(caseData.created_at).toLocaleString()}</p>
-              </div>
-            </div>
+      {/* Three-pane Workstation */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '320px 1fr 360px',
+        gap: 'var(--space-normal)',
+        height: 'calc(100vh - var(--header-height) - 140px)',
+        minHeight: '600px'
+      }}>
+        {/* Risk Panel - Left */}
+        <WorkstationPane title="Risk Assessment" sticky className="workstation-pane-sticky">
+          <ScoreDisplay
+            score={caseData.risk_score}
+            band={caseData.risk_band}
+            threshold={0.41}
+            recommendedAction={caseData.recommended_action}
+            meta={[
+              { label: 'Order ID', value: caseData.order_id },
+              { label: 'Threshold', value: exceeded ? '0.41 (EXCEEDED)' : '0.41', valueClassName: exceeded ? 'risk-high' : '' },
+              { label: 'Status', value: caseData.status === 'decided' ? 'DECIDED' : 'PENDING', valueClassName: caseData.status === 'decided' ? '' : 'accent' },
+              { label: 'Created', value: formatTimestamp(caseData.created_at) },
+            ]}
+            onAction={handleDecision}
+            disabled={caseData.status === 'decided' || !!deciding}
+            loadingAction={deciding}
+          />
+
+          <Divider label="Key Metrics" />
+
+          <MetricRowWithDescription
+            label="Order ID"
+            value={caseData.order_id}
+            description="Original order reference"
+          />
+        </WorkstationPane>
+
+        {/* Center Pane - Evidence / Decision / Timeline */}
+        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          {/* Tabs */}
+          <div className="tabs" role="tablist" aria-label="Case detail sections">
+            <button
+              role="tab"
+              aria-selected={activeTab === 'evidence'}
+              onClick={() => setActiveTab('evidence')}
+              className={`tabs-item ${activeTab === 'evidence' ? 'tabs-item-active' : ''}`}
+            >
+              Evidence
+            </button>
+            <button
+              role="tab"
+              aria-selected={activeTab === 'decision'}
+              onClick={() => setActiveTab('decision')}
+              className={`tabs-item ${activeTab === 'decision' ? 'tabs-item-active' : ''}`}
+            >
+              Decision
+            </button>
+            <button
+              role="tab"
+              aria-selected={activeTab === 'timeline'}
+              onClick={() => setActiveTab('timeline')}
+              className={`tabs-item ${activeTab === 'timeline' ? 'tabs-item-active' : ''}`}
+            >
+              Timeline
+            </button>
           </div>
-          <div className="lg:col-span-1">
-            <div className="space-y-3">
-              <div className="p-4 bg-bg-tertiary rounded-lg">
-                <p className="text-sm text-text-secondary">Recommended Action</p>
-                <p className="font-semibold px-3 py-1 rounded inline-block badge-info">
-                  {caseData.recommended_action.toUpperCase()}
-                </p>
+
+          {/* Tab Panels */}
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+            {/* Evidence Tab */}
+            {activeTab === 'evidence' && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-normal)' }}>
+                <EvidenceCard category="behavioral" items={evidenceGroups.behavioral} />
+                <EvidenceCard category="graph" items={evidenceGroups.graph} />
+                <EvidenceCard category="temporal" items={evidenceGroups.temporal} />
               </div>
-              {caseData.status === 'pending' && (
-                <div className="space-y-2">
-                  {(['approve', 'verify', 'review', 'hold'] as const).map((action) => (
-                    <button
-                      key={action}
-                      onClick={() => handleDecision(action)}
-                      disabled={deciding}
-                      className={`w-full px-4 py-2 rounded-lg font-medium transition ${
-                        action === 'approve' ? 'btn-success' :
-                        action === 'verify' ? 'btn-primary' :
-                        action === 'review' ? 'btn-warning' :
-                        'btn-danger'
-                      }`}
-                    >
-                      {deciding ? 'Processing...' : action.charAt(0).toUpperCase() + action.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {caseData.status === 'decided' && (
-                <div className="p-4 bg-success-light border border-success-light rounded-lg">
-                  <p className="text-sm text-success">Decision Made</p>
-                  <p className="text-success">
-                    Action: <strong>{caseData.decision?.toUpperCase()}</strong>
-                    {caseData.decided_at && ` • ${new Date(caseData.decided_at).toLocaleString()}`}
+            )}
+
+            {/* Decision Tab */}
+            {activeTab === 'decision' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-normal)' }}>
+                <div style={{
+                  backgroundColor: 'var(--color-surface)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: 'var(--space-normal)'
+                }}>
+                  <h3 style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-semibold)', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-tight)' }}>Risk Assessment Summary</h3>
+                  <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)', lineHeight: 'var(--leading-relaxed)', marginBottom: 'var(--space-tight)' }}>
+                    This refund event was scored <strong>{caseData.risk_score.toFixed(3)}</strong>
+                    by the Sentinel production model (39 features: 18 behavioral + 15 graph + 6 temporal).
+                    The frozen decision threshold is <strong>0.41</strong>.
+                  </p>
+                  <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)', lineHeight: 'var(--leading-relaxed)' }}>
+                    Based on the ActionPolicy, this places the event in the
+                    <StatusBadge variant="risk" value={caseData.risk_band} />
+                    band, recommending
+                    <StatusBadge variant="action" value={caseData.recommended_action} />.
                   </p>
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="card overflow-hidden">
-        <div className="border-b border-border">
-          <nav className="flex -mb-px" aria-label="Tabs">
-            {([
-              { key: 'evidence', label: 'Evidence' },
-              { key: 'graph', label: 'Network Graph' },
-              { key: 'decision', label: 'Decision' },
-              { key: 'timeline', label: 'Timeline' },
-            ] as const).map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`px-6 py-3 text-sm font-medium border-b-2 transition ${
-                  activeTab === tab.key
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-text-secondary hover:text-text-primary hover:border-border'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
-        </div>
+                {caseData.status === 'decided' && (
+                  <Callout variant="production" title="Decision Recorded">
+                    <p style={{ color: 'var(--color-risk-low-text)' }}>
+                      Action: <strong>{caseData.decision?.toUpperCase()}</strong>
+                      {caseData.decided_at && ` · ${formatTimestamp(caseData.decided_at)}`}
+                    </p>
+                  </Callout>
+                )}
 
-        <div className="p-6">
-          {activeTab === 'evidence' && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <EvidenceCard
-                title="Behavioral Evidence"
-                category="behavioral"
-                items={evidenceGroups.behavioral}
-              />
-              <EvidenceCard
-                title="Graph Evidence"
-                category="graph"
-                items={evidenceGroups.graph}
-              />
-              <EvidenceCard
-                title="Temporal Evidence"
-                category="temporal"
-                items={evidenceGroups.temporal}
-              />
-            </div>
-          )}
-
-          {activeTab === 'graph' && (
-            <div>
-              <GraphViz data={graphData} width={800} height={500} />
-              {graphData && (
-                <div className="mt-4 grid grid-cols-4 gap-4 text-sm">
-                  <div className="bg-bg-tertiary p-3 rounded">
-                    <p className="text-text-secondary">Connected Customers</p>
-                    <p className="font-bold text-text-primary">{graphData.stats.connected_customers}</p>
+                <div style={{
+                  backgroundColor: 'var(--color-surface)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-md)',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{ padding: 'var(--space-tight) var(--space-normal)', borderBottom: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-tertiary)' }}>
+                    <h3 style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-semibold)', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)' }}>Feature Values (Production Model)</h3>
                   </div>
-                  <div className="bg-bg-tertiary p-3 rounded">
-                    <p className="text-text-secondary">Shared Devices</p>
-                    <p className="font-bold text-text-primary">{graphData.stats.shared_devices}</p>
-                  </div>
-                  <div className="bg-bg-tertiary p-3 rounded">
-                    <p className="text-text-secondary">Shared Addresses</p>
-                    <p className="font-bold text-text-primary">{graphData.stats.shared_addresses}</p>
-                  </div>
-                  <div className="bg-bg-tertiary p-3 rounded">
-                    <p className="text-text-secondary">Shared Payments</p>
-                    <p className="font-bold text-text-primary">{graphData.stats.shared_payments}</p>
-                  </div>
+                  <details style={{ padding: 'var(--space-normal)' }}>
+                    <summary style={{ cursor: 'pointer', color: 'var(--color-primary)', marginBottom: 'var(--space-tight)', fontSize: 'var(--text-sm)', fontWeight: 'var(--font-medium)' }}>
+                      Show all 39 features
+                    </summary>
+                    <pre style={{
+                      fontSize: '10px',
+                      lineHeight: '1.5',
+                      maxHeight: '400px',
+                      overflow: 'auto',
+                      backgroundColor: 'var(--color-bg-tertiary)',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: 'var(--space-tight)',
+                      fontFamily: 'var(--font-mono)'
+                    }}>
+                      {JSON.stringify(caseData, null, 2)}
+                    </pre>
+                  </details>
                 </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'decision' && (
-            <div className="space-y-4">
-              <div className="p-4 bg-bg-tertiary rounded-lg">
-                <h3 className="font-semibold text-text-primary mb-2">Risk Assessment Summary</h3>
-                <p className="text-text-secondary">
-                  This refund event was scored <strong>{caseData.risk_score.toFixed(3)}</strong>
-                  by the Sentinel production model (39 features: 18 behavioral + 15 graph + 6 temporal).
-                  The frozen decision threshold is <strong>0.41</strong>.
-                </p>
-                <p className="text-text-secondary mt-2">
-                  Based on the ActionPolicy, this places the event in the
-                  <strong className={`badge-info px-2 py-0.5 rounded inline-block`}>
-                    {caseData.risk_band}
-                  </strong>
-                  band, recommending <strong className="badge-info px-2 py-0.5 rounded inline-block">
-                    {caseData.recommended_action.toUpperCase()}
-                  </strong>.
-                </p>
               </div>
+            )}
 
-              {caseData.status === 'decided' && (
-                <div className="p-4 bg-success-light border border-success-light rounded-lg">
-                  <h3 className="font-semibold text-success mb-2">Decision Recorded</h3>
-                  <p className="text-success">
-                    Action: <strong>{caseData.decision?.toUpperCase()}</strong>
-                    {caseData.decided_at && ` • ${new Date(caseData.decided_at).toLocaleString()}`}
-                  </p>
-                </div>
-              )}
-
-              <div className="p-4 bg-bg-tertiary rounded-lg">
-                <h3 className="font-semibold text-text-primary mb-2">Feature Values (Production Model)</h3>
-                <details className="text-sm">
-                  <summary className="cursor-pointer text-primary hover:text-primary-hover">Show all 39 features</summary>
-                  <pre className="mt-2 p-3 bg-surface border border-border rounded overflow-auto text-xs">
-                    {JSON.stringify(caseData, null, 2)}
-                  </pre>
-                </details>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'timeline' && (
-            <div>
-              {timelineData ? (
-                <div className="space-y-4">
-                  <div className="bg-bg-tertiary p-4 rounded-lg">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <p className="text-text-secondary">Target Customer</p>
-                        <p className="font-mono font-medium">{timelineData.target_customer}</p>
-                      </div>
-                      <div>
-                        <p className="text-text-secondary">Target Refund</p>
-                        <p className="font-mono font-medium">{timelineData.target_refund_id}</p>
-                      </div>
-                      <div>
-                        <p className="text-text-secondary">Refund Time</p>
-                        <p className="font-mono font-medium">{new Date(timelineData.target_timestamp).toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-text-secondary">Component Size</p>
-                        <p className="font-bold text-text-primary">{timelineData.component_size} accounts</p>
-                      </div>
+            {/* Timeline Tab */}
+            {activeTab === 'timeline' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-normal)' }}>
+                {timelineData ? (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-normal)' }}>
+                      <MetricRowWithDescription label="Target Customer" value={timelineData.target_customer} />
+                      <MetricRowWithDescription label="Target Refund" value={timelineData.target_refund_id} />
+                      <MetricRowWithDescription label="Refund Time" value={formatTimestamp(timelineData.target_timestamp)} />
+                      <MetricRowWithDescription label="Component Size" value={`${timelineData.component_size} accounts`} description="Connected component members" />
                     </div>
-                  </div>
-                  {timelineData.events.length === 0 ? (
-                    <div className="text-text-muted text-center py-8">
-                      No events in the connected component within the {timelineData.window_hours}-hour window before the refund.
-                    </div>
-                  ) : (
-                    <div className="card overflow-hidden">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead className="bg-bg-tertiary border-b border-border">
-                            <tr>
-                              <th className="px-4 py-3 text-left font-semibold text-text-secondary">Time (Relative)</th>
-                              <th className="px-4 py-3 text-left font-semibold text-text-secondary">Absolute Time</th>
-                              <th className="px-4 py-3 text-left font-semibold text-text-secondary">Customer</th>
-                              <th className="px-4 py-3 text-left font-semibold text-text-secondary">Event Type</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-border">
-                            {timelineData.events.map((event, idx) => {
+                    {timelineData.events.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '48px', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)' }}>
+                        <p style={{ color: 'var(--color-text-muted)' }}>
+                          No events in the connected component within the {timelineData.window_hours}-hour window before the refund.
+                        </p>
+                      </div>
+                    ) : (
+                      <CompactTable
+                        columns={[
+                          {
+                            key: 'relative',
+                            header: 'TIME (RELATIVE)',
+                            render: (_: TimelineEvent, idx: number) => {
+                              const event = timelineData!.events[idx];
                               const eventTime = new Date(event.timestamp);
-                              const targetTime = new Date(timelineData.target_timestamp);
+                              const targetTime = new Date(timelineData!.target_timestamp);
                               const diffMinutes = Math.round((eventTime.getTime() - targetTime.getTime()) / 60000);
                               const relativeTime = diffMinutes < 0
                                 ? `${Math.abs(diffMinutes)} min before`
                                 : diffMinutes > 0
                                 ? `${diffMinutes} min after`
                                 : 'at refund time';
+                              return <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>{relativeTime}</span>;
+                            },
+                          },
+                          {
+                            key: 'absolute',
+                            header: 'ABSOLUTE TIME',
+                            render: (_: TimelineEvent, idx: number) => (
+                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>
+                                {formatTimestamp(timelineData!.events[idx].timestamp)}
+                              </span>
+                            ),
+                          },
+                          {
+                            key: 'customer',
+                            header: 'CUSTOMER',
+                            render: (_: TimelineEvent, idx: number) => {
+                              const event = timelineData!.events[idx];
                               return (
-                                <tr key={idx} className={event.is_target ? 'bg-primary-light' : ''}>
-                                  <td className="px-4 py-3 font-mono text-text-secondary">{relativeTime}</td>
-                                  <td className="px-4 py-3 font-mono text-text-secondary">{eventTime.toLocaleString()}</td>
-                                  <td className="px-4 py-3">
-                                    <span className={event.is_target ? 'font-mono font-medium text-primary' : 'font-mono text-text-primary'}>
-                                      {event.customer_id}
-                                      {event.is_target && ' (target)'}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                      event.event_type === 'refund'
-                                        ? 'bg-danger-light text-danger-foreground'
-                                        : 'bg-success-light text-success-foreground'
-                                    }`}>
-                                        {event.event_type.toUpperCase()}
-                                      </span>
-                                  </td>
-                                </tr>
+                                <span style={{
+                                  fontFamily: 'var(--font-mono)',
+                                  fontSize: 'var(--text-xs)',
+                                  color: event.is_target ? 'var(--color-primary)' : 'var(--color-text-primary)',
+                                  fontWeight: event.is_target ? 'var(--font-medium)' : 'normal'
+                                }}>
+                                  {event.customer_id}
+                                  {event.is_target && ' (target)'}
+                                </span>
                               );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-text-muted text-center py-8">
-                  Loading timeline...
-                </div>
-              )}
-            </div>
-          )}
+                            },
+                          },
+                          {
+                            key: 'event_type',
+                            header: 'EVENT TYPE',
+                            render: (_: TimelineEvent, idx: number) => {
+                              const event = timelineData!.events[idx];
+                              return (
+                                <StatusBadge
+                                  variant={event.event_type === 'refund' ? 'risk' : 'action'}
+                                  value={event.event_type === 'refund' ? 'HIGH' : 'approve'}
+                                />
+                              );
+                            },
+                          },
+                        ]}
+                        data={timelineData.events}
+                        keyExtractor={(_, idx) => idx}
+                        emptyMessage="No events in this window"
+                      />
+                    )}
+                  </>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '48px', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)' }}>
+                    <p style={{ color: 'var(--color-text-muted)' }}>Loading timeline...</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Graph Pane - Right */}
+        <WorkstationPane title="Network Graph" sticky className="workstation-pane-sticky">
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+              <GraphViz data={graphData} width={360} height={500} />
+            </div>
+            {graphData && (
+              <div style={{
+                marginTop: 'var(--space-loose)',
+                paddingTop: 'var(--space-loose)',
+                borderTop: '1px solid var(--color-border)',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: 'var(--space-loose)'
+              }}>
+                <MetricRowWithDescription
+                  label="Connected Customers"
+                  value={graphData.stats.connected_customers}
+                  description="Customers in the connected component"
+                />
+                <MetricRowWithDescription
+                  label="Shared Devices"
+                  value={graphData.stats.shared_devices}
+                  description="Device entities shared with target"
+                />
+                <MetricRowWithDescription
+                  label="Shared Addresses"
+                  value={graphData.stats.shared_addresses}
+                  description="Address entities shared with target"
+                />
+                <MetricRowWithDescription
+                  label="Shared Payments"
+                  value={graphData.stats.shared_payments}
+                  description="Payment tokens shared with target"
+                />
+              </div>
+            )}
+          </div>
+        </WorkstationPane>
       </div>
     </div>
   );
-}
-
-export function formatCurrency(n: number): string {
-  return `₹${n.toLocaleString(undefined, { minimumFractionDigits: 0 })}`;
 }

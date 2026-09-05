@@ -1,6 +1,7 @@
 ﻿"""Backend models package."""
 
 from backend.app.models.base import Base, get_db, engine, SessionLocal
-from backend.app.models.risk_case import RiskCase, CaseEvidence, CaseDecision
+from backend.app.models.risk_case import RiskCase, CaseEvidence, CaseDecision, RefundEventQueue
+from backend.app.models.webhook import ProcessedWebhookEvent
 
-__all__ = ["Base", "get_db", "engine", "SessionLocal", "RiskCase", "CaseEvidence", "CaseDecision"]
+__all__ = ["Base", "get_db", "engine", "SessionLocal", "RiskCase", "CaseEvidence", "CaseDecision", "RefundEventQueue", "ProcessedWebhookEvent"]

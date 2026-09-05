@@ -179,12 +179,63 @@ Click **Deploy**. Vercel will:
 | `ARTIFACTS_DIR` | No | `./artifacts` | Model artifacts directory |
 | `FRONTEND_ORIGIN` | **Yes (prod)** | - | Vercel frontend URL for CORS |
 | `BACKEND_RELOAD` | No | `false` | Disable in production |
+| `RAZORPAY_WEBHOOK_SECRET` | **Yes (webhook)** | - | Secret for HMAC-SHA256 webhook verification. Generate with `openssl rand -hex 32` |
 
 ### Frontend (Vercel)
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `VITE_API_BASE` | **Yes** | Backend API URL (e.g., `https://api.onrender.com/api`) |
+
+---
+
+## Razorpay Webhook Configuration
+
+### 1. Configure Webhook in Razorpay Dashboard
+
+1. Log in to [Razorpay Dashboard](https://dashboard.razorpay.com)
+2. Navigate to **Settings** → **Webhooks**
+2. Click **Add New Webhook**
+3. **Webhook URL**: `https://<your-render-backend>.onrender.com/api/webhooks/razorpay`
+   - Replace `<your-render-backend>` with your actual Render service name
+   - Must use HTTPS (port 443)
+4. **Secret**: Generate a secure secret:
+   ```bash
+   openssl rand -hex 32
+   ```
+   Copy this value - you'll need it for the `RAZORPAY_WEBHOOK_SECRET` environment variable
+5. **Events**: Select **refund.created** (only this event is processed for scoring)
+6. Click **Create Webhook**
+
+### 2. Configure Environment Variable on Render
+
+Add `RAZORPAY_WEBHOOK_SECRET` to your Render backend environment variables with the secret you generated above.
+
+**Important**: 
+- Never expose this secret to the frontend/Vercel
+- Store only in Render backend environment variables
+- If you rotate the secret, keep the old one for 24h to handle retries
+
+### 3. Verify Webhook Delivery
+
+Test locally:
+```bash
+cd sentinel
+RAZORPAY_WEBHOOK_SECRET=your_secret python scripts/test_webhook.py --host localhost --port 8000
+```
+
+Or test against deployed backend:
+```bash
+RAZORPAY_WEBHOOK_SECRET=your_secret python scripts/test_webhook.py --host sentinel-api.onrender.com --port 443
+```
+
+### 4. Razorpay Webhook Requirements
+
+- **HTTPS required**: Webhook URL must use HTTPS (port 443)
+- **Response time**: Must return 2xx within 5 seconds
+- **Retries**: Razorpay retries failed deliveries with exponential backoff for 24 hours
+- **IP Whitelist**: Ensure [Razorpay webhook IPs](https://razorpay.com/docs/security/whitelists#webhook-ips) are allowed through any firewall/WAF
+- **At-least-once delivery**: Handle duplicate deliveries using `x-razorpay-event-id` header
 
 ---
 

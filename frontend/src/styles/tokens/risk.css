@@ -1,0 +1,109 @@
+:root {
+  /* LOW - Success / Emerald */
+  --color-risk-low: #059669;              /* emerald-600 */
+  --color-risk-low-bg: #ecfdf5;           /* emerald-50 */
+  --color-risk-low-border: #a7f3d0;       /* emerald-200 */
+  --color-risk-low-text: #064e3b;         /* emerald-900 */
+  --color-risk-low-fg: #059669;
+
+  /* MEDIUM - Warning / Amber */
+  --color-risk-medium: #d97706;           /* amber-600 */
+  --color-risk-medium-bg: #fffbeb;        /* amber-50 */
+  --color-risk-medium-border: #fde68a;    /* amber-200 */
+  --color-risk-medium-text: #78350f;      /* amber-900 */
+  --color-risk-medium-fg: #d97706;
+
+  /* HIGH - Danger / Red */
+  --color-risk-high: #dc2626;             /* red-600 */
+  --color-risk-high-bg: #fef2f2;          /* red-50 */
+  --color-risk-high-border: #fecaca;      /* red-200 */
+  --color-risk-high-text: #991b1b;        /* red-900 */
+  --color-risk-high-fg: #dc2626;
+
+  /* CRITICAL - Critical / Deep Red */
+  --color-risk-critical: #b91c1c;         /* red-700 */
+  --color-risk-critical-bg: #fef2f2;      /* red-50 */
+  --color-risk-critical-border: #b91c1c;  /* red-700 */
+  --color-risk-critical-text: #ffffff;
+  --color-risk-critical-fg: #b91c1c;
+
+  /* Operational States */
+  --color-status-connected: #059669;
+  --color-status-connected-bg: #ecfdf5;
+  --color-status-disconnected: #dc2626;
+  --color-status-disconnected-bg: #fef2f2;
+  --color-status-monitoring: #059669;
+  --color-status-paused: #d97706;
+  --color-status-pending: #1e40af;
+  --color-status-processing: #1e40af;
+  --color-status-completed: #059669;
+  --color-status-failed: #dc2626;
+
+  /* Action Colors */
+  --color-action-approve: #059669;
+  --color-action-approve-bg: #ecfdf5;
+  --color-action-verify: #1e40af;
+  --color-action-verify-bg: #dbeafe;
+  --color-action-review: #d97706;
+  --color-action-review-bg: #fffbeb;
+  --color-action-hold: #b91c1c;
+  --color-action-hold-bg: #fef2f2;
+
+  /* Risk border widths */
+  --risk-border-width: 4px;
+}
+
+[data-theme="dark"] {
+  /* LOW - Success / Emerald */
+  --color-risk-low: #34d399;              /* emerald-400 */
+  --color-risk-low-bg: rgba(5, 150, 105, 0.12);
+  --color-risk-low-border: #065f46;       /* emerald-800 */
+  --color-risk-low-text: #a7f3d0;         /* emerald-200 */
+  --color-risk-low-fg: #34d399;
+
+  /* MEDIUM - Warning / Amber */
+  --color-risk-medium: #fbbf24;           /* amber-400 */
+  --color-risk-medium-bg: rgba(217, 119, 6, 0.12);
+  --color-risk-medium-border: #92400e;    /* amber-800 */
+  --color-risk-medium-text: #fde68a;      /* amber-200 */
+  --color-risk-medium-fg: #fbbf24;
+
+  /* HIGH - Danger / Red */
+  --color-risk-high: #f87171;             /* red-400 */
+  --color-risk-high-bg: rgba(220, 38, 38, 0.12);
+  --color-risk-high-border: #991b1b;      /* red-900 */
+  --color-risk-high-text: #fecaca;        /* red-200 */
+  --color-risk-high-fg: #f87171;
+
+  /* CRITICAL - Critical / Deep Red */
+  --color-risk-critical: #fca5a5;         /* red-300 */
+  --color-risk-critical-bg: rgba(185, 28, 28, 0.18);
+  --color-risk-critical-border: #fca5a5;
+  --color-risk-critical-text: #0c0a09;
+  --color-risk-critical-fg: #fca5a5;
+
+  /* Operational States */
+  --color-status-connected: #34d399;
+  --color-status-connected-bg: rgba(5, 150, 105, 0.12);
+  --color-status-disconnected: #f87171;
+  --color-status-disconnected-bg: rgba(220, 38, 38, 0.12);
+  --color-status-monitoring: #34d399;
+  --color-status-paused: #fbbf24;
+  --color-status-pending: #60a5fa;
+  --color-status-processing: #60a5fa;
+  --color-status-completed: #34d399;
+  --color-status-failed: #f87171;
+
+  /* Action Colors */
+  --color-action-approve: #34d399;
+  --color-action-approve-bg: rgba(5, 150, 105, 0.12);
+  --color-action-verify: #60a5fa;
+  --color-action-verify-bg: rgba(30, 64, 175, 0.12);
+  --color-action-review: #fbbf24;
+  --color-action-review-bg: rgba(217, 119, 6, 0.12);
+  --color-action-hold: #f87171;
+  --color-action-hold-bg: rgba(220, 38, 38, 0.12);
+
+  /* Risk border widths */
+  --risk-border-width: 4px;
+}

@@ -153,7 +153,7 @@ export interface TimelineResponse {
   target_customer: string;
   target_refund_id: string;
   target_timestamp: string;
-  window_hours: int;
+  window_hours: number;
   events: TimelineEvent[];
   component_size: number;
 }
@@ -273,35 +273,4 @@ export interface EnqueueRefundResponse {
   message: string;
   queue_id: number;
   status: string;
-}
-
-export interface RefundQueueResponse {
-  items: RefundQueueItem[];
-  total: number;
-  page: number;
-  size: number;
-  pages: number;
-}
-
-export interface IntegrationStatusResponse {
-  connected: boolean;
-  monitoring: boolean;
-  last_processed_event?: string;
-  events_received: number;
-  events_processed: number;
-  events_failed: number;
-  queue_pending: number;
-  last_processed_refund_id?: string;
-  last_processed_risk_band?: string;
-  last_processed_action?: string;
-}
-
-export interface QueueControlRequest {
-  action: 'start' | 'stop' | 'pause' | 'resume';
-}
-
-export interface QueueControlResponse {
-  success: boolean;
-  message: string;
-  monitoring: boolean;
 }

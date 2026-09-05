@@ -1,0 +1,62 @@
+:root {
+  /* Backgrounds - warm analyst console */
+  --color-bg-primary: #fafafa;        /* stone-50 */
+  --color-bg-secondary: #ffffff;      /* white */
+  --color-bg-tertiary: #f5f5f4;       /* stone-100 */
+  --color-bg-hover: #e7e5e4;          /* stone-200 */
+  --color-bg-active: #d6d3d1;         /* stone-300 */
+
+  /* Surfaces */
+  --color-surface: #ffffff;
+  --color-surface-elevated: #ffffff;
+  --color-surface-hover: #fafafa;
+
+  /* Borders - subtle, quiet */
+  --color-border: #e7e5e4;            /* stone-200 */
+  --color-border-strong: #d6d3d1;     /* stone-300 */
+  --color-border-focus: #1e40af;      /* blue-800 */
+
+  /* Text */
+  --color-text-primary: #1c1917;      /* stone-900 */
+  --color-text-secondary: #57534e;    /* stone-600 */
+  --color-text-muted: #a8a29e;        /* stone-400 */
+  --color-text-inverse: #ffffff;
+
+  /* Primary Brand - restrained security blue */
+  --color-primary: #1e40af;           /* blue-800 */
+  --color-primary-hover: #1e3a8a;     /* blue-900 */
+  --color-primary-light: #dbeafe;     /* blue-100 */
+  --color-primary-foreground: #ffffff;
+
+  /* Focus */
+  --color-focus: #1e40af;
+  --color-focus-ring: rgba(30, 64, 175, 0.25);
+
+  /* Shadows - minimal */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.03);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.02);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.04), 0 2px 4px -2px rgb(0 0 0 / 0.02);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.04), 0 4px 6px -4px rgb(0 0 0 / 0.02);
+
+  /* Radius - small, controlled */
+  --radius-sm: 0.125rem;   /* 2px */
+  --radius-md: 0.25rem;    /* 4px */
+  --radius-lg: 0.375rem;   /* 6px */
+  --radius-xl: 0.5rem;     /* 8px */
+  --radius-full: 9999px;
+
+  /* Transitions */
+  --transition-fast: 100ms ease;
+  --transition-normal: 150ms ease;
+  --transition-slow: 200ms ease;
+
+  /* Spacing rhythm */
+  --space-tight: 0.5rem;   /* 8px */
+  --space-normal: 1rem;    /* 16px */
+  --space-loose: 2rem;     /* 32px */
+
+  /* Sidebar */
+  --sidebar-width: 260px;
+  --sidebar-collapsed-width: 56px;
+  --header-height: 44px;
+}

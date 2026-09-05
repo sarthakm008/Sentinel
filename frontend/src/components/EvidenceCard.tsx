@@ -3,40 +3,40 @@
 import { EvidenceItem } from '../types';
 
 interface EvidenceCardProps {
-  title: string;
   category: 'behavioral' | 'graph' | 'temporal';
   items: EvidenceItem[];
-  icon?: React.ReactNode;
 }
 
-const categoryStyles: Record<string, { bg: string; border: string; icon: string }> = {
-  behavioral: { bg: 'bg-blue-50', border: 'border-blue-200', icon: '👤' },
-  graph: { bg: 'bg-purple-50', border: 'border-purple-200', icon: '🕸️' },
-  temporal: { bg: 'bg-orange-50', border: 'border-orange-200', icon: '⏱️' },
+const categoryConfig: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  behavioral: { label: 'BEHAVIORAL', color: 'var(--color-primary)', bg: 'var(--color-primary-light)', border: 'var(--color-primary)' },
+  graph: { label: 'GRAPH', color: 'var(--color-risk-medium)', bg: 'var(--color-action-review-bg)', border: 'var(--color-action-review)' },
+  temporal: { label: 'TEMPORAL', color: 'var(--color-risk-high)', bg: 'var(--color-action-hold-bg)', border: 'var(--color-action-hold)' },
 };
 
-export function EvidenceCard({ title, category, items, icon }: EvidenceCardProps) {
-  const styles = categoryStyles[category] || categoryStyles.behavioral;
+export function EvidenceCard({ category, items }: EvidenceCardProps) {
+  const config = categoryConfig[category] || categoryConfig.behavioral;
 
   if (items.length === 0) {
     return (
-      <div className="bg-bg-tertiary border border-border rounded-lg p-4">
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-text-secondary mb-3">
-          <span>{styles.icon}</span> {title}
-        </h3>
-        <p className="text-sm text-text-muted">No significant evidence in this category</p>
+      <div className="panel">
+        <div className="panel-header" style={{ color: config.color, borderColor: config.border }}>
+          {config.label}
+        </div>
+        <div className="panel-body">
+          <p className="text-sm text-text-muted">No significant evidence in this category</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-surface border border-border rounded-lg p-4">
-      <h3 className="flex items-center gap-2 text-sm font-semibold text-text-secondary mb-3">
-        <span>{styles.icon}</span> {title}
-      </h3>
-      <div className="space-y-2">
+    <div className="panel" style={{ borderColor: config.border }}>
+      <div className="panel-header" style={{ color: config.color, borderColor: config.border }}>
+        {config.label}
+      </div>
+      <div className="panel-body space-y-2">
         {items.map((item, idx) => (
-          <div key={idx} className="bg-surface border border-border rounded p-3">
+          <div key={idx} className="panel-body p-3" style={{ backgroundColor: config.bg, borderColor: config.border }}>
             <p className="text-sm font-medium text-text-primary">{item.description}</p>
             <p className="text-xs text-text-muted mt-1 font-mono">
               Metric: {item.metric} = {typeof item.value === 'number' ? item.value.toFixed(3) : item.value}

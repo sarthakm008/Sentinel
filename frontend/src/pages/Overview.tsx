@@ -1,51 +1,63 @@
-// Dashboard Overview page
+// Overview Page - Operations Command Center
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { casesApi, demoApi, evaluationApi } from '../api';
 import { CaseResponse, EvaluationResponse } from '../types';
-import { CaseCard } from '../components/CaseCard';
-import { MerchantIntegration } from '../components/MerchantIntegration';
+import { DataRow } from '../components/DataRow';
+import { PageHeader } from '../components/PageHeader';
+import { MetricCard } from '../components/MetricCard';
+import { Callout } from '../components/Callout';
+import { Divider } from '../components/Divider';
+import { RiskPulse } from '../components/RiskPulse';
+import { formatCurrency, formatLossVsBaseline } from '../utils/format';
+import { useIntegrationStatus } from '../contexts/IntegrationStatusContext';
 
 export function Overview() {
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     total: 0,
-    high_risk: 0,
-    review_queue: 0,
-    allowed: 0,
-    estimated_exposure: 0,
+    highRisk: 0,
+    reviewQueue: 0,
+    approved: 0,
+    estimatedExposure: 0,
+    byBand: { LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 0 },
   });
   const [recentCases, setRecentCases] = useState<CaseResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [evalData, setEvalData] = useState<EvaluationResponse | null>(null);
+  const { status: integrationStatus } = useIntegrationStatus();
 
-  useEffect(() => {
-    loadDashboard();
-  }, []);
-
-  const loadDashboard = async () => {
+  const loadDashboard = useCallback(async () => {
     try {
       setLoading(true);
       const [casesRes, evalRes] = await Promise.all([
-        casesApi.list({ size: 10 }),
+        casesApi.list({ size: 50 }),
         evaluationApi.get(),
       ]);
       setRecentCases(casesRes.cases);
 
-      const highRisk = casesRes.cases.filter(c => c.risk_band === 'HIGH' || c.risk_band === 'CRITICAL').length;
-      const reviewQueue = casesRes.cases.filter(c => c.status === 'pending' && (c.recommended_action === 'review' || c.recommended_action === 'hold')).length;
-      const allowed = casesRes.cases.filter(c => c.recommended_action === 'approve').length;
+      const byBand = { LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 0 };
+      casesRes.cases.forEach((c) => {
+        byBand[c.risk_band] = (byBand[c.risk_band] || 0) + 1;
+      });
+
+      const highRisk = byBand.HIGH + byBand.CRITICAL;
+      const reviewQueue = casesRes.cases.filter(
+        (c) => c.status === 'pending' && (c.recommended_action === 'review' || c.recommended_action === 'hold')
+      ).length;
+      const approved = casesRes.cases.filter((c) => c.recommended_action === 'approve').length;
       const exposure = casesRes.cases
-        .filter(c => c.risk_band === 'HIGH' || c.risk_band === 'CRITICAL')
-        .reduce((sum, c) => sum + c.risk_score * 10000, 0); // Rough estimate
+        .filter((c) => c.risk_band === 'HIGH' || c.risk_band === 'CRITICAL')
+        .reduce((sum, c) => sum + c.risk_score * 10000, 0);
 
       setStats({
         total: casesRes.total,
-        high_risk: highRisk,
-        review_queue: reviewQueue,
-        allowed: allowed,
-        estimated_exposure: exposure,
+        highRisk,
+        reviewQueue,
+        approved,
+        estimatedExposure: exposure,
+        byBand,
       });
       setEvalData(evalRes);
     } catch (err) {
@@ -53,7 +65,11 @@ export function Overview() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
 
   const handleRunDemo = async () => {
     try {
@@ -73,131 +89,134 @@ export function Overview() {
     }
   };
 
-  const formatCurrency = (n: number) => `₹${n.toLocaleString(undefined, { minimumFractionDigits: 0 })}`;
+  const sentinel = evalData?.production_candidate;
+  const lossInfo = sentinel ? formatLossVsBaseline(sentinel.loss_avoided_vs_baseline) : null;
 
-  const formatLossVsBaseline = (lossAvoided: number) => {
-    if (lossAvoided >= 0) {
-      return `Loss Avoided: ${formatCurrency(lossAvoided)}`;
-    } else {
-      return `Additional Loss vs Baseline: ${formatCurrency(Math.abs(lossAvoided))}`;
-    }
-  };
-
-  const handleCaseCreated = (caseId: number) => {
-    loadDashboard();
-  };
+  const latestCases = recentCases.slice(0, 15);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px' }}>
+        <div className="spinner-lg" />
       </div>
     );
   }
 
-  const sentinel = evalData?.production_candidate;
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Sentinel Dashboard</h1>
-          <p className="text-text-secondary">AI-Powered Coordinated Refund Abuse Detection</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleRunDemo}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover transition font-medium"
-          >
-            Run Demo Scenario
-          </button>
-          <button
-            onClick={handleResetDemo}
-            className="px-4 py-2 bg-bg-tertiary text-text-primary hover:bg-bg-hover transition font-medium"
-          >
-            Reset Demo
-          </button>
-        </div>
-      </div>
-
-      {/* Merchant Integration / Live Refund Monitoring */}
-      <MerchantIntegration onCaseCreated={handleCaseCreated} />
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <div className="card p-6">
-          <p className="text-sm text-text-secondary">Total Analyzed</p>
-          <p className="text-3xl font-bold text-text-primary mt-1">{stats.total}</p>
-        </div>
-        <div className="card p-6">
-          <p className="text-sm text-text-secondary">High Risk Cases</p>
-          <p className="text-3xl font-bold text-danger mt-1">{stats.high_risk}</p>
-        </div>
-        <div className="card p-6">
-          <p className="text-sm text-text-secondary">Review Queue</p>
-          <p className="text-3xl font-bold text-warning mt-1">{stats.review_queue}</p>
-        </div>
-        <div className="card p-6">
-          <p className="text-sm text-text-secondary">Auto-Approved</p>
-          <p className="text-3xl font-bold text-success mt-1">{stats.allowed}</p>
-        </div>
-        <div className="card p-6">
-          <p className="text-sm text-text-secondary">Est. Exposure</p>
-          <p className="text-3xl font-bold text-text-primary mt-1">{formatCurrency(stats.estimated_exposure)}</p>
-        </div>
-      </div>
-
-      {/* Production Model Summary */}
-      {sentinel && (
-        <div className="card p-4 border-success border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold text-success">Production Candidate: Full Sentinel (39 features)</p>
-              <p className="text-sm text-success mt-1">
-                PR-AUC: {sentinel.pr_auc.toFixed(4)} | Recall: {sentinel.recall.toFixed(4)} | Precision: {sentinel.precision.toFixed(4)} | {formatLossVsBaseline(sentinel.loss_avoided_vs_baseline)}
-              </p>
-            </div>
-            <Link
-              to="/evaluation"
-              className="px-4 py-2 bg-success text-success-foreground rounded-lg hover:bg-success transition font-medium"
-            >
-              View Full Evaluation
-            </Link>
+    <div>
+      <PageHeader
+        title="Operations"
+        subtitle="Live risk operations console"
+        actions={
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={handleRunDemo} className="btn btn-primary btn-sm">Run Demo</button>
+            <button onClick={handleResetDemo} className="btn btn-secondary btn-sm">Reset Demo</button>
           </div>
-        </div>
-      )}
+        }
+      />
 
-      {/* Recent Cases */}
-      <div className="card overflow-hidden">
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <h2 className="text-lg font-semibold text-text-primary">Recent Risk Cases</h2>
-          <Link to="/cases" className="text-sm text-primary hover:text-primary-hover">View All</Link>
+      {/* System Status Bar */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '24px',
+        padding: '12px 16px',
+        backgroundColor: 'var(--color-bg-tertiary)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 'var(--radius-md)',
+        marginBottom: 'var(--space-loose)'
+      }}>
+        <div className="sidebar-integration-status" style={{ padding: '0', backgroundColor: 'transparent' }}>
+          <span className="dot" style={{ backgroundColor: integrationStatus?.monitoring ? 'var(--color-status-monitoring)' : 'var(--color-text-muted)' }} />
+          <span style={{ fontWeight: 'var(--font-semibold)', fontSize: 'var(--text-sm)' }}>
+            {integrationStatus?.monitoring ? 'MONITORING ACTIVE' : 'MONITORING STOPPED'}
+          </span>
         </div>
-        <div className="divide-y divide-border">
-          {recentCases.length === 0 ? (
-            <div className="p-8 text-center text-text-muted">
-              No cases yet. Use the "Send Test Refund" tool above or run the demo scenario.
+        <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--color-border)' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>Refunds</span>
+          <span className="metric-card-value" style={{ fontSize: 'var(--text-sm)' }}>{integrationStatus?.events_received ?? 0}</span>
+        </div>
+        <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--color-border)' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>Queue</span>
+          <span className="metric-card-value risk-medium" style={{ fontSize: 'var(--text-sm)' }}>{integrationStatus?.queue_pending ?? 0}</span>
+        </div>
+        <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--color-border)' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>Processed</span>
+          <span className="metric-card-value risk-low" style={{ fontSize: 'var(--text-sm)' }}>{integrationStatus?.events_processed ?? 0}</span>
+        </div>
+        <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--color-border)' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>Failed</span>
+          <span className="metric-card-value risk-high" style={{ fontSize: 'var(--text-sm)' }}>{integrationStatus?.events_failed ?? 0}</span>
+        </div>
+      </div>
+
+      {/* Key Metrics */}
+      <div className="metric-row">
+        <MetricCard label="Total Cases" value={stats.total} />
+        <MetricCard label="Review Queue" value={stats.reviewQueue} valueClassName="risk-medium" />
+        <MetricCard label="High + Critical" value={stats.highRisk} valueClassName="risk-high" />
+        <MetricCard label="Est. Exposure" value={formatCurrency(stats.estimatedExposure)} valueClassName="accent" />
+      </div>
+
+      {/* Live Refund Activity */}
+      <div style={{ marginBottom: 'var(--space-loose)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+          <h2 style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)' }}>Live Refund Activity</h2>
+          <Link to="/cases" className="btn btn-ghost btn-sm">View All Cases</Link>
+        </div>
+        <div style={{
+          backgroundColor: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-md)',
+          overflow: 'hidden'
+        }}>
+          {latestCases.length === 0 ? (
+            <div className="empty-state" style={{ padding: '32px' }}>
+              <p style={{ color: 'var(--color-text-muted)' }}>No recent refund activity</p>
             </div>
           ) : (
-            recentCases.map((caseData) => (
-              <CaseCard key={caseData.id} case={caseData} onClick={() => navigate(`/cases/${caseData.id}`)} />
+            latestCases.map((c) => (
+              <DataRow
+                key={c.id}
+                case={c}
+                onClick={() => navigate(`/cases/${c.id}`)}
+              />
             ))
           )}
         </div>
       </div>
+
+      <Divider label="Risk Distribution" />
+
+      {/* Risk Distribution */}
+      <RiskPulse stats={stats.byBand} />
+
+      <Divider label="Production Model" />
+
+      {/* Production Model Summary */}
+      {sentinel && (
+        <Callout
+          variant="production"
+          title="Production Candidate: Full Sentinel (39 features)"
+          metrics={[
+            { label: 'PR-AUC', value: sentinel.pr_auc.toFixed(4) },
+            { label: 'Recall', value: sentinel.recall.toFixed(4) },
+            { label: 'Precision', value: sentinel.precision.toFixed(4) },
+            { label: 'Threshold', value: sentinel.frozen_threshold.toFixed(2) },
+            { label: 'Samples', value: sentinel.sample_count.toLocaleString() },
+            { label: lossInfo?.label || 'Loss vs Baseline', value: lossInfo?.value || '—', valueClassName: lossInfo?.color === 'success' ? 'risk-low' : 'risk-high' },
+          ]}
+        >
+          <Link to="/evaluation" className="btn btn-secondary btn-sm" style={{ width: 'fit-content', marginTop: '8px' }}>
+            View Full Evaluation
+          </Link>
+        </Callout>
+      )}
     </div>
   );
-}
-
-function formatCurrency(n: number): string {
-  return `₹${n.toLocaleString(undefined, { minimumFractionDigits: 0 })}`;
-}
-
-function formatLossVsBaseline(lossAvoided: number): string {
-  if (lossAvoided >= 0) {
-    return `Loss Avoided: ${formatCurrency(lossAvoided)}`;
-  } else {
-    return `Additional Loss vs Baseline: ${formatCurrency(Math.abs(lossAvoided))}`;
-  }
 }
