@@ -2,7 +2,7 @@
 
 This module resolves Razorpay webhook fields into the full set of fields
 required by Sentinel's 39-feature model. It attempts to resolve merchant
-context using existing identifiers (order_id, payment_id, email, contact).
+context using existing identifiers (order_id, payment_id).
 
 IMPORTANT: Does NOT fabricate identifiers. If context cannot be resolved,
 the event is marked as enrichment_required.
@@ -129,23 +129,20 @@ class MerchantContextResolver:
         Strategy:
         1. Check if we have an existing RiskCase with this refund_id
         2. Check if we have an existing RefundEventQueue entry
-        3. Try to find customer via email/contact from payment entity
-        3. Check historical data (parquet) via payment_id/order_id
+        3. Look up order by payment.order_id in historical data (orders_df)
+           - This gives us customer_id, device_id, address_id, payment_token_id, product_category
+        4. Verify customer exists in customers_df
 
         Returns resolution with whatever fields could be resolved.
         """
-        missing_fields = []
-
         # Try to find existing case with this refund_id
         existing_case = self.db.query(RiskCase).filter(
-            RiskCase.refund_id == refund.payment_id  # refund.payment_id is the payment_id
+            RiskCase.refund_id == refund.id
         ).first()
 
         if existing_case:
-            # We have a historical record - use its context
             return MerchantContextResolution(
                 customer_id=existing_case.customer_id,
-                # We still need device/address/payment_token from somewhere
                 enrichment_required=True,
                 enrichment_reason="Found existing case but missing device/address/payment context"
             )
@@ -164,20 +161,32 @@ class MerchantContextResolver:
                 product_category=existing_queue.product_category,
             )
 
-        # Try to resolve customer via payment email/contact
-        # In the synthetic data, we can look up by email/contact
-        customer_id = self._resolve_customer_id(payment)
+        # Look up order by payment.order_id in historical data
+        order_data = self._resolve_order_data(payment.order_id)
+        if not order_data:
+            return MerchantContextResolution(
+                enrichment_required=True,
+                enrichment_reason=f"Order {payment.order_id} not found in historical data"
+            )
+
+        customer_id = order_data.get("customer_id")
         if not customer_id:
             return MerchantContextResolution(
                 enrichment_required=True,
-                enrichment_reason="Could not resolve customer_id from payment email/contact"
+                enrichment_reason=f"Order {payment.order_id} missing customer_id"
             )
 
-        # For synthetic data, we can try to get device/address/payment_token
-        # from historical data by looking up the customer's recent orders
-        device_id, address_id, payment_token, product_category = self._resolve_order_context(
-            payment.order_id, customer_id
-        )
+        # Verify customer exists in customers data
+        if not self._verify_customer_exists(customer_id):
+            return MerchantContextResolution(
+                enrichment_required=True,
+                enrichment_reason=f"Customer {customer_id} not found in historical data"
+            )
+
+        device_id = order_data.get("device_id")
+        address_id = order_data.get("address_id")
+        payment_token = order_data.get("payment_token_id")
+        product_category = order_data.get("product_category")
 
         missing = []
         if not device_id:
@@ -208,55 +217,8 @@ class MerchantContextResolver:
             product_category=product_category,
         )
 
-    def _resolve_customer_id(self, payment: RazorpayPaymentEntity) -> Optional[str]:
-        """Try to resolve customer_id from payment email or contact."""
-        # In the synthetic data, we can query the customers table
-        # For now, check if we have a mapping in our existing data
-
-        # Try email first
-        if payment.email:
-            from backend.app.services.ml_service import get_inference_service
-            try:
-                service = get_inference_service()
-                if service.customers_df is not None:
-                    matches = service.customers_df[service.customers_df["email"] == payment.email]
-                    if len(matches) == 1:
-                        return matches.iloc[0]["customer_id"]
-            except Exception:
-                pass
-
-        # Try contact/phone
-        if payment.contact:
-            from backend.app.services.ml_service import get_inference_service
-            try:
-                service = get_inference_service()
-                if service.customers_df is not None:
-                    matches = service.customers_df[service.customers_df["contact"] == payment.contact]
-                    if len(matches) == 1:
-                        return matches.iloc[0]["customer_id"]
-            except Exception:
-                pass
-
-        # Try to find by payment_id in refunds data
-        from backend.app.services.ml_service import get_inference_service
-        try:
-            service = get_inference_service()
-            if service.refunds_df is not None:
-                # We need to find a refund with this payment_id
-                # But we don't have a direct mapping in the webhook
-                # The payment_id from webhook should match the payment_id in orders/refunds
-                pass
-        except Exception:
-            pass
-
-        return None
-
-    def _resolve_order_context(
-        self,
-        order_id: str,
-        customer_id: str
-    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
-        """Resolve device_id, address_id, payment_token, product_category from order."""
+    def _resolve_order_data(self, order_id: str) -> Optional[dict]:
+        """Look up order data from historical orders DataFrame."""
         from backend.app.services.ml_service import get_inference_service
 
         try:
@@ -265,16 +227,31 @@ class MerchantContextResolver:
                 order_matches = service.orders_df[service.orders_df["order_id"] == order_id]
                 if len(order_matches) == 1:
                     order = order_matches.iloc[0]
-                    return (
-                        order.get("device_id"),
-                        order.get("address_id"),
-                        order.get("payment_token_id"),
-                        order.get("product_category"),
-                    )
+                    return {
+                        "customer_id": order.get("customer_id"),
+                        "device_id": order.get("device_id"),
+                        "address_id": order.get("address_id"),
+                        "payment_token_id": order.get("payment_token_id"),
+                        "product_category": order.get("product_category"),
+                    }
         except Exception:
             pass
 
-        return (None, None, None, None)
+        return None
+
+    def _verify_customer_exists(self, customer_id: str) -> bool:
+        """Verify customer exists in historical customers DataFrame."""
+        from backend.app.services.ml_service import get_inference_service
+
+        try:
+            service = get_inference_service()
+            if service.customers_df is not None:
+                matches = service.customers_df[service.customers_df["customer_id"] == customer_id]
+                return len(matches) == 1
+        except Exception:
+            pass
+
+        return False
 
     def _create_failed_normalization(
         self,

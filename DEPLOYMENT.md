@@ -4,7 +4,7 @@
 
 Sentinel consists of two deployable components:
 - **Frontend**: React/Vite SPA → Deploy to **Vercel**
-- **Backend**: FastAPI + Uvicorn → Deploy to **Render Free Web Service**
+- **Backend**: FastAPI + Uvicorn → Deploy to **Render Web Service**
 
 ---
 
@@ -13,17 +13,16 @@ Sentinel consists of two deployable components:
 ```
 ┌─────────────────┐     HTTPS      ┌─────────────────┐
 │   Frontend      │ ◄────────────► │   Backend       │
-│   (Vercel)      │   API Calls    │  (Render Free)  │
+│   (Vercel)      │   API Calls    │  (Render)       │
 │                 │                │                 │
 │ React/Vite      │                │  FastAPI        │
-│ Static Files    │                │  SQLite + ML    │
+│ Static Files    │                │  ML Inference   │
 └─────────────────┘                └────────┬────────┘
-                                            │
-                               ┌────────────┴────────┐
-                               │   SQLite Database   │
-                               │   (Ephemeral on     │
-                               │   Render Free)      │
-                               └─────────────────────┘
+                                             │
+                                ┌────────────┴────────┐
+                                │  Supabase PostgreSQL │
+                                │  (Session Pooler)   │
+                                └─────────────────────┘
 ```
 
 ---
@@ -56,21 +55,30 @@ Add these environment variables in Render dashboard:
 
 | Variable | Value | Notes |
 |----------|-------|-------|
-| `DATABASE_URL` | `postgresql+psycopg://postgres:password@host:5432/sentinel` | PostgreSQL connection string |
+| `DATABASE_URL` | `postgresql+psycopg://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres` | Supabase Session Pooler connection string (use `postgresql+psycopg://` driver) |
 | `RANDOM_SEED` | `42` | ML reproducibility |
 | `DATA_DIR` | `./data` | Raw data directory |
 | `ARTIFACTS_DIR` | `./artifacts` | Model artifacts directory |
-| `FRONTEND_ORIGIN` | `https://your-frontend.vercel.app` | **Set after Step 3** |
-| `PYTHON_VERSION` | `3.11.0` | Optional, but recommended |
+| `FRONTEND_ORIGIN` | `https://your-frontend.vercel.app` | **Set after Step 3** — Vercel frontend URL for CORS |
+| `RAZORPAY_WEBHOOK_SECRET` | `<generated-secret>` | **Required for webhook** — Generate with `openssl rand -hex 32` |
+| `PYTHON_VERSION` | `3.11` | Optional, but recommended |
 
-### 1.4 PostgreSQL Database Provisioning
+### 1.4 PostgreSQL Database Provisioning (Supabase)
 
-**Provision a PostgreSQL database** before deploying the backend:
+**Provision a Supabase PostgreSQL database** before deploying the backend:
 
-- Use a managed PostgreSQL service (Render PostgreSQL, Supabase, Neon, AWS RDS, etc.)
-- Create a database named `sentinel`
-- Note the connection string: `postgresql+psycopg://USER:PASSWORD@HOST:5432/sentinel`
-- Set this as `DATABASE_URL` in Render environment variables
+1. Create a Supabase project at [supabase.com](https://supabase.com)
+2. Go to **Settings** → **Database** → **Connection pooling**
+3. Enable **Session Pooler** (port 5432)
+4. Note the connection string format:
+   ```
+   postgresql+psycopg://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+   ```
+5. Set this as `DATABASE_URL` in Render environment variables
+
+**Important**: Use the **Session Pooler** (not Transaction Pooler) on port 5432. The application uses `psycopg v3` with `prepare_threshold=0` to avoid prepared statement caching issues with PgBouncer.
+
+**Alternative**: You can also use Render PostgreSQL, Neon, AWS RDS, or any managed PostgreSQL service. The connection string format will vary.
 
 **Note**: No persistent disk is required for PostgreSQL - the database is hosted externally.
 
@@ -173,12 +181,12 @@ Click **Deploy**. Vercel will:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `DATABASE_URL` | Yes | - | PostgreSQL connection string (e.g., `postgresql+psycopg://user:pass@host:5432/sentinel`) |
+| `DATABASE_URL` | Yes | - | Supabase Session Pooler connection string (e.g., `postgresql+psycopg://postgres.<ref>:<pwd>@aws-0-<region>.pooler.supabase.com:5432/postgres`) |
 | `PORT` | Auto | Set by Render | Port to bind (provided by Render) |
 | `RANDOM_SEED` | No | `42` | ML reproducibility |
 | `DATA_DIR` | No | `./data` | Raw data directory |
 | `ARTIFACTS_DIR` | No | `./artifacts` | Model artifacts directory |
-| `FRONTEND_ORIGIN` | **Yes (prod)** | - | Vercel frontend URL for CORS |
+| `FRONTEND_ORIGIN` | **Yes (prod)** | - | Vercel frontend URL for CORS (e.g., `https://your-frontend.vercel.app`) |
 | `BACKEND_RELOAD` | No | `false` | Disable in production |
 | `RAZORPAY_WEBHOOK_SECRET` | **Yes (webhook)** | - | Secret for HMAC-SHA256 webhook verification. Generate with `openssl rand -hex 32` |
 
@@ -186,7 +194,7 @@ Click **Deploy**. Vercel will:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `VITE_API_BASE` | **Yes** | Backend API URL (e.g., `https://api.onrender.com/api`) |
+| `VITE_API_BASE` | **Yes** | Backend API URL including `/api` suffix (e.g., `https://api.onrender.com/api`) |
 
 ---
 
@@ -276,25 +284,28 @@ cd frontend && npm run dev
 
 ### Database Support
 
-**Production**: PostgreSQL is the required production database. SQLite is only supported for local development.
+**Production**: PostgreSQL via Supabase Session Pooler (or any managed PostgreSQL) is the required production database. SQLite is only supported for local development.
 
 **Local Development (SQLite)**:
 ```bash
 DATABASE_URL=sqlite:///./sentinel.db
 ```
 
-**Production (PostgreSQL)**:
+**Production (PostgreSQL / Supabase Session Pooler)**:
 ```bash
-DATABASE_URL=postgresql+psycopg://user:password@host:5432/sentinel
+DATABASE_URL=postgresql+psycopg://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
 ```
 
-The application automatically detects the database type from `DATABASE_URL` and configures appropriately.
+The application automatically detects the database type from `DATABASE_URL` and configures appropriately:
+- For PostgreSQL: Sets `prepare_threshold=0` to avoid PgBouncer prepared statement issues
+- For SQLite: Sets `check_same_thread=False` for FastAPI async usage
 
-### PostgreSQL on Render
+### PostgreSQL on Render with Supabase
 
-When deploying to Render with PostgreSQL:
-- Provision a managed PostgreSQL database (Render PostgreSQL, Supabase, Neon, AWS RDS, etc.)
-- Set `DATABASE_URL` to the PostgreSQL connection string
+When deploying to Render with Supabase PostgreSQL:
+- Provision a Supabase project and enable Session Pooler (port 5432)
+- Set `DATABASE_URL` to the Supabase Session Pooler connection string
+- Use `postgresql+psycopg://` driver (psycopg v3)
 - No persistent disk required for the database
 
 ### Bundled Assets
@@ -305,6 +316,15 @@ The following are **bundled in the repository/deployment** (not downloaded at ru
 - `data/splits/*.json` - Train/val/test split manifests
 - `artifacts/models/sentinel_model.joblib` - Frozen 39-feature production model
 - `artifacts/metrics/threshold.json` - Frozen threshold (0.41)
+
+### Queue Monitor Limitation
+
+The background queue monitor runs **in-process** within the FastAPI application (started via lifespan). This design works for single-worker deployments (Render Free/Starter tiers). 
+
+**Limitation**: If you scale to multiple workers or processes, each worker runs its own queue monitor instance polling the same database queue. This can lead to duplicate processing or race conditions. For multi-worker deployments, consider:
+- Running the queue monitor as a separate service (e.g., Render Background Worker)
+- Using a distributed task queue (Redis/RQ, Celery)
+- Implementing PostgreSQL advisory locks or `SELECT ... FOR UPDATE SKIP LOCKED`
 
 ### Health Check
 
